@@ -174,7 +174,7 @@ impl TryFrom<RawFunction> for Function {
                 let source_type = if is_file {
                     if source.ends_with(".json") {
                         Ok(ForFunctionSourceType::JSONFile)
-                    } else if source.ends_with("/") {
+                    } else if source.ends_with('/') {
                         Ok(ForFunctionSourceType::MarkdownDirectory)
                     } else {
                         Err(ParseError::InvalidArgument)
@@ -211,7 +211,7 @@ impl TryFrom<RawFunction> for Function {
 
                 Ok(Self::For {
                     variable_name: variable_name.to_string(),
-                    source: source.to_string(),
+                    source,
                     source_type,
                     limit,
                     sort_variable,

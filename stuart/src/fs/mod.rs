@@ -1,5 +1,5 @@
 use std::fmt::Debug;
-use std::fs::{read, read_dir};
+use std::fs::{create_dir, read, read_dir, remove_dir_all, write};
 use std::path::Path;
 
 #[derive(Clone)]
@@ -10,8 +10,10 @@ pub enum Node {
 
 #[derive(Clone, Copy, Debug)]
 pub enum Error {
+    Path,
     NotFound,
     Read,
+    Write,
 }
 
 impl Node {
@@ -26,6 +28,48 @@ impl Node {
         let content_dir = Self::create_from_dir(&content_path)?;
 
         Ok(content_dir)
+    }
+
+    pub fn save(&self, path: impl AsRef<Path>) -> Result<(), Error> {
+        let path = path.as_ref().to_path_buf();
+
+        if path.exists() && path.is_dir() {
+            remove_dir_all(&path).map_err(|_| Error::Write)?;
+        }
+
+        match self {
+            Self::Directory { name: _, children } => {
+                create_dir(&path).map_err(|_| Error::Write)?;
+
+                for child in children {
+                    child.save_recur(&path)?;
+                }
+            }
+            _ => panic!("Node::save should only be used on the root directory"),
+        }
+
+        Ok(())
+    }
+
+    fn save_recur(&self, path: impl AsRef<Path>) -> Result<(), Error> {
+        let path = path.as_ref().to_path_buf();
+
+        match self {
+            Self::Directory { name, children } => {
+                let dir = path.join(name);
+
+                create_dir(&dir).map_err(|_| Error::Write)?;
+
+                for child in children {
+                    child.save_recur(&dir)?;
+                }
+            }
+            Self::File { name, contents } => {
+                write(path.join(name), contents).map_err(|_| Error::Write)?;
+            }
+        }
+
+        Ok(())
     }
 
     fn create_from_dir(dir: impl AsRef<Path>) -> Result<Self, Error> {

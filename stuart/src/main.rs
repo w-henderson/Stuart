@@ -1,11 +1,12 @@
-mod fs;
-mod parse;
+use stuart::fs::Node;
+use stuart::Stuart;
+
+static IN: &str = "C:/Users/willi/Develop/React/StuartPortfolio";
+static OUT: &str = "C:/Users/willi/Develop/React/StuartPortfolio/dist";
 
 fn main() {
-    let content =
-        std::fs::read_to_string("C:/Users/willi/Develop/React/StuartPortfolio/content/blog.html")
-            .unwrap();
-    let parsed = parse::parse(&content).unwrap();
-
-    println!("{:#?}", parsed);
+    let fs = Node::new(IN).unwrap();
+    let mut stuart = Stuart::new(fs);
+    stuart.build();
+    stuart.save(OUT).unwrap();
 }
