@@ -30,6 +30,35 @@ impl Node {
         Ok(content_dir)
     }
 
+    pub fn is_dir(&self) -> bool {
+        matches!(self, Node::Directory { .. })
+    }
+
+    pub fn is_file(&self) -> bool {
+        matches!(self, Node::File { .. })
+    }
+
+    pub fn name(&self) -> &str {
+        match self {
+            Node::File { name, .. } => name,
+            Node::Directory { name, .. } => name,
+        }
+    }
+
+    pub fn children(&self) -> Option<&[Node]> {
+        match self {
+            Node::Directory { children, .. } => Some(children),
+            Node::File { .. } => None,
+        }
+    }
+
+    pub fn children_mut(&mut self) -> Option<&mut [Node]> {
+        match self {
+            Node::Directory { children, .. } => Some(children),
+            Node::File { .. } => None,
+        }
+    }
+
     pub fn save(&self, path: impl AsRef<Path>) -> Result<(), Error> {
         let path = path.as_ref().to_path_buf();
 
@@ -45,7 +74,7 @@ impl Node {
                     child.save_recur(&path)?;
                 }
             }
-            _ => panic!("Node::save should only be used on the root directory"),
+            _ => panic!("`Node::save` should only be used on the root directory"),
         }
 
         Ok(())
