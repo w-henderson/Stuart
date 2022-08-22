@@ -1,19 +1,29 @@
+use crate::parse::{parse, Token, TracebackError};
+
 use std::fmt::Debug;
 use std::fs::{create_dir, read, read_dir, remove_dir_all, write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 #[derive(Clone)]
 pub enum Node {
-    File { name: String, contents: Vec<u8> },
-    Directory { name: String, children: Vec<Node> },
+    File {
+        name: String,
+        contents: Vec<u8>,
+        parsed_contents: Option<Vec<Token>>,
+    },
+    Directory {
+        name: String,
+        children: Vec<Node>,
+    },
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum Error {
     Path,
     NotFound,
     Read,
     Write,
+    Parse(PathBuf, TracebackError),
 }
 
 impl Node {
@@ -93,7 +103,7 @@ impl Node {
                     child.save_recur(&dir)?;
                 }
             }
-            Self::File { name, contents } => {
+            Self::File { name, contents, .. } => {
                 write(path.join(name), contents).map_err(|_| Error::Write)?;
             }
         }
@@ -126,11 +136,20 @@ impl Node {
 
     fn create_from_file(file: impl AsRef<Path>) -> Result<Self, Error> {
         let file = file.as_ref();
+        let name = file.file_name().unwrap().to_string_lossy().to_string();
         let contents = read(&file).map_err(|_| Error::Read)?;
+
+        let parsed_contents = if name.ends_with(".html") {
+            let contents_string = std::str::from_utf8(&contents).map_err(|_| Error::Read)?;
+            Some(parse(contents_string).map_err(|e| Error::Parse(file.to_path_buf(), e))?)
+        } else {
+            None
+        };
 
         Ok(Node::File {
             name: file.file_name().unwrap().to_string_lossy().to_string(),
             contents,
+            parsed_contents,
         })
     }
 }
@@ -138,7 +157,7 @@ impl Node {
 impl Debug for Node {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::File { name, contents } => f
+            Self::File { name, contents, .. } => f
                 .debug_struct("File")
                 .field("name", name)
                 .field("contents", &format!("{} bytes", contents.len()))

@@ -1,8 +1,8 @@
 use stuart::fs::Node;
 use stuart::Stuart;
 
-static IN: &str = "C:/Users/willi/Develop/React/StuartPortfolio";
-static OUT: &str = "C:/Users/willi/Develop/React/StuartPortfolio/dist";
+static IN: &str = "C:/Users/willi/OneDrive/StuartPortfolio";
+static OUT: &str = "C:/Users/willi/OneDrive/StuartPortfolio/dist";
 
 fn main() {
     let start = std::time::Instant::now();

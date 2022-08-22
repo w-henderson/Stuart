@@ -1,6 +1,6 @@
 use super::error::ParseError;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Function {
     Begin {
         label: String,
@@ -9,6 +9,9 @@ pub enum Function {
     End {
         label: String,
         custom: bool,
+    },
+    Insert {
+        label: String,
     },
     For {
         variable_name: String,
@@ -23,6 +26,9 @@ pub enum Function {
     DateFormat {
         variable_name: String,
     },
+    Timestamp {
+        variable_name: String,
+    },
     TimeToRead {
         variable_name: String,
     },
@@ -32,7 +38,7 @@ pub enum Function {
     },
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum ForFunctionSourceType {
     MarkdownDirectory,
     JSONFile,
@@ -158,6 +164,18 @@ impl TryFrom<RawFunction> for Function {
                     _ => Err(ParseError::InvalidArgument),
                 }
             }
+            "insert" => {
+                quiet_assert(value.positional_args.len() == 1)?;
+                quiet_assert(value.named_args.is_empty())?;
+
+                let string = value.positional_args[0]
+                    .as_string()
+                    .ok_or(ParseError::InvalidArgument)?;
+
+                Ok(Self::Insert {
+                    label: string.to_string(),
+                })
+            }
             "for" => {
                 quiet_assert(value.positional_args.len() == 2)?;
 
@@ -250,6 +268,18 @@ impl TryFrom<RawFunction> for Function {
                     .ok_or(ParseError::InvalidArgument)?;
 
                 Ok(Self::TimeToRead {
+                    variable_name: variable_name.to_string(),
+                })
+            }
+            "timestamp" => {
+                quiet_assert(value.positional_args.len() == 1)?;
+                quiet_assert(value.named_args.is_empty())?;
+
+                let variable_name = value.positional_args[0]
+                    .as_variable()
+                    .ok_or(ParseError::InvalidArgument)?;
+
+                Ok(Self::Timestamp {
                     variable_name: variable_name.to_string(),
                 })
             }

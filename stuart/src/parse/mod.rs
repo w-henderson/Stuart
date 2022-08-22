@@ -2,11 +2,11 @@ mod error;
 mod functions;
 mod parser;
 
-use self::error::{ParseError, TracebackError};
-use self::functions::{Function, RawArgument, RawFunction};
-use self::parser::Parser;
+pub use self::error::{ParseError, TracebackError};
+pub use self::functions::{Function, RawArgument, RawFunction};
+pub use self::parser::Parser;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Token {
     Raw(String),
     Function(Function),
