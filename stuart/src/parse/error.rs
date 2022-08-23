@@ -17,4 +17,6 @@ pub enum ParseError {
     FunctionWithoutParens,
     GenericSyntaxError,
     PositionalArgAfterNamedArg,
+    InvalidFrontmatter,
+    InvalidJson,
 }

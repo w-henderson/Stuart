@@ -1,13 +1,11 @@
 pub mod fs;
 pub mod parse;
+pub mod process;
 
 use crate::fs::Node;
+use crate::parse::Token;
 
 use std::path::Path;
-
-// Special files:
-// - md.html
-// - root.html
 
 #[derive(Debug)]
 pub struct Stuart {
@@ -16,9 +14,9 @@ pub struct Stuart {
 }
 
 #[derive(Debug)]
-pub struct SpecialFiles<'a> {
-    pub root: Option<&'a Node>,
-    pub md: Option<&'a Node>,
+pub struct SpecialFiles {
+    pub root: Option<Vec<Token>>,
+    pub md: Option<Vec<Token>>,
 }
 
 impl Stuart {
@@ -35,12 +33,13 @@ impl Stuart {
                 self.stack.push(0);
             }
 
+            let special_files = self.nearest_special_files();
+
             match self.stack_target() {
                 Some(n) if n.is_file() => {
-                    // process file
-                    print!("{:?}", n);
-                    let special_files = self.nearest_special_files();
-                    println!(": {:?}", special_files);
+                    if n.name() != "root.html" && n.name() != "md.html" {
+                        n.process(special_files.unwrap());
+                    }
 
                     let index = self.stack.pop().unwrap();
                     self.stack.push(index + 1);
@@ -74,13 +73,13 @@ impl Stuart {
         Some(n)
     }
 
-    fn nearest_special_files(&self) -> SpecialFiles {
+    fn nearest_special_files(&self) -> Option<SpecialFiles> {
         let mut stack = Vec::with_capacity(self.stack.len());
         let mut n = &self.fs;
 
         for child in &self.stack {
             stack.push(n);
-            n = n.children().unwrap().get(*child).unwrap();
+            n = n.children()?.get(*child)?;
         }
 
         let mut root = None;
@@ -88,23 +87,13 @@ impl Stuart {
 
         for dir in stack.into_iter().rev() {
             if root.is_none() {
-                if let Some(child) = dir
-                    .children()
-                    .unwrap()
-                    .iter()
-                    .find(|c| c.name() == "root.html")
-                {
+                if let Some(child) = dir.children()?.iter().find(|c| c.name() == "root.html") {
                     root = Some(child);
                 }
             }
 
             if md.is_none() {
-                if let Some(child) = dir
-                    .children()
-                    .unwrap()
-                    .iter()
-                    .find(|c| c.name() == "md.html")
-                {
+                if let Some(child) = dir.children()?.iter().find(|c| c.name() == "md.html") {
                     md = Some(child);
                 }
             }
@@ -114,6 +103,15 @@ impl Stuart {
             }
         }
 
-        SpecialFiles { root, md }
+        Some(SpecialFiles {
+            root: root
+                .map(|n| n.parsed_contents())
+                .and_then(|c| c.tokens())
+                .map(|t| t.to_vec()),
+            md: md
+                .map(|n| n.parsed_contents())
+                .and_then(|c| c.tokens())
+                .map(|t| t.to_vec()),
+        })
     }
 }

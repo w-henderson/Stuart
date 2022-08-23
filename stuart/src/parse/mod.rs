@@ -1,9 +1,11 @@
 mod error;
 mod functions;
+mod markdown;
 mod parser;
 
 pub use self::error::{ParseError, TracebackError};
 pub use self::functions::{Function, RawArgument, RawFunction};
+pub use self::markdown::{parse_markdown, ParsedMarkdown};
 pub use self::parser::Parser;
 
 #[derive(Clone, Debug)]

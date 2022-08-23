@@ -1,4 +1,6 @@
-use crate::parse::{parse, Token, TracebackError};
+use crate::parse::{parse, parse_markdown, ParseError, ParsedMarkdown, Token, TracebackError};
+
+use humphrey_json::Value;
 
 use std::fmt::Debug;
 use std::fs::{create_dir, read, read_dir, remove_dir_all, write};
@@ -9,7 +11,7 @@ pub enum Node {
     File {
         name: String,
         contents: Vec<u8>,
-        parsed_contents: Option<Vec<Token>>,
+        parsed_contents: ParsedContents,
     },
     Directory {
         name: String,
@@ -24,6 +26,14 @@ pub enum Error {
     Read,
     Write,
     Parse(PathBuf, TracebackError),
+}
+
+#[derive(Clone, Debug)]
+pub enum ParsedContents {
+    Html(Vec<Token>),
+    Markdown(ParsedMarkdown),
+    Json(Value),
+    None,
 }
 
 impl Node {
@@ -69,6 +79,22 @@ impl Node {
         }
     }
 
+    pub fn contents(&self) -> Option<&[u8]> {
+        match self {
+            Node::File { contents, .. } => Some(contents),
+            Node::Directory { .. } => None,
+        }
+    }
+
+    pub fn parsed_contents(&self) -> &ParsedContents {
+        match self {
+            Node::File {
+                parsed_contents, ..
+            } => parsed_contents,
+            Node::Directory { .. } => &ParsedContents::None,
+        }
+    }
+
     pub fn save(&self, path: impl AsRef<Path>) -> Result<(), Error> {
         let path = path.as_ref().to_path_buf();
 
@@ -104,7 +130,9 @@ impl Node {
                 }
             }
             Self::File { name, contents, .. } => {
-                write(path.join(name), contents).map_err(|_| Error::Write)?;
+                if name != "root.html" && name != "md.html" {
+                    write(path.join(name), contents).map_err(|_| Error::Write)?;
+                }
             }
         }
 
@@ -138,16 +166,34 @@ impl Node {
         let file = file.as_ref();
         let name = file.file_name().unwrap().to_string_lossy().to_string();
         let contents = read(&file).map_err(|_| Error::Read)?;
+        let extension = file.extension().map(|e| e.to_string_lossy().to_string());
+        let contents_string = std::str::from_utf8(&contents).map_err(|_| Error::Read);
 
-        let parsed_contents = if name.ends_with(".html") {
-            let contents_string = std::str::from_utf8(&contents).map_err(|_| Error::Read)?;
-            Some(parse(contents_string).map_err(|e| Error::Parse(file.to_path_buf(), e))?)
-        } else {
-            None
+        let parsed_contents = match extension.as_deref() {
+            Some("html") => ParsedContents::Html(
+                parse(contents_string?).map_err(|e| Error::Parse(file.to_path_buf(), e))?,
+            ),
+            Some("md") => ParsedContents::Markdown(
+                parse_markdown(contents_string?.to_string())
+                    .map_err(|e| Error::Parse(file.to_path_buf(), e))?,
+            ),
+            Some("json") => {
+                ParsedContents::Json(humphrey_json::from_str(contents_string?).map_err(|_| {
+                    Error::Parse(
+                        file.to_path_buf(),
+                        TracebackError {
+                            kind: ParseError::InvalidJson,
+                            column: 0,
+                            line: 0,
+                        },
+                    )
+                })?)
+            }
+            _ => ParsedContents::None,
         };
 
         Ok(Node::File {
-            name: file.file_name().unwrap().to_string_lossy().to_string(),
+            name,
             contents,
             parsed_contents,
         })
@@ -157,16 +203,37 @@ impl Node {
 impl Debug for Node {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::File { name, contents, .. } => f
+            Self::File {
+                name,
+                contents,
+                parsed_contents,
+            } => f
                 .debug_struct("File")
                 .field("name", name)
                 .field("contents", &format!("{} bytes", contents.len()))
+                .field("parsed_contents", parsed_contents)
                 .finish(),
             Self::Directory { name, children } => f
                 .debug_struct("Directory")
                 .field("name", name)
                 .field("children", children)
                 .finish(),
+        }
+    }
+}
+
+impl ParsedContents {
+    pub fn tokens(&self) -> Option<&[Token]> {
+        match self {
+            Self::Html(tokens) => Some(tokens),
+            _ => None,
+        }
+    }
+
+    pub fn markdown(&self) -> Option<&ParsedMarkdown> {
+        match self {
+            Self::Markdown(markdown) => Some(markdown),
+            _ => None,
         }
     }
 }
