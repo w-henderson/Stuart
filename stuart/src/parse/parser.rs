@@ -1,10 +1,12 @@
 use super::error::{ParseError, TracebackError};
 
 use std::iter::Peekable;
+use std::path::Path;
 use std::str::Chars;
 
 pub struct Parser<'a> {
     chars: Peekable<Chars<'a>>,
+    path: &'a Path,
     line: u32,
     column: u32,
     next_line: u32,
@@ -12,9 +14,10 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(chars: Chars<'a>) -> Self {
+    pub fn new(chars: Chars<'a>, path: &'a Path) -> Self {
         Self {
             chars: chars.peekable(),
+            path,
             line: 1,
             column: 1,
             next_line: 1,
@@ -22,15 +25,16 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn traceback(&self, e: ParseError) -> TracebackError {
+    pub fn traceback(&self, e: ParseError) -> TracebackError<ParseError> {
         TracebackError {
+            path: self.path.to_path_buf(),
             line: self.line,
             column: self.column,
             kind: e,
         }
     }
 
-    pub fn next(&mut self) -> Result<char, TracebackError> {
+    pub fn next(&mut self) -> Result<char, TracebackError<ParseError>> {
         if let Some(c) = self.chars.next() {
             self.line = self.next_line;
             self.column = self.next_column;
@@ -52,7 +56,7 @@ impl<'a> Parser<'a> {
         self.chars.peek().copied()
     }
 
-    pub fn expect(&mut self, s: &str) -> Result<(), TracebackError> {
+    pub fn expect(&mut self, s: &str) -> Result<(), TracebackError<ParseError>> {
         let chars = s.chars();
 
         for c in chars {
@@ -65,7 +69,7 @@ impl<'a> Parser<'a> {
     }
 
     /// does not include the pattern
-    pub fn extract_until(&mut self, s: &str) -> Result<String, TracebackError> {
+    pub fn extract_until(&mut self, s: &str) -> Result<String, TracebackError<ParseError>> {
         let mut result = String::with_capacity(128);
 
         loop {

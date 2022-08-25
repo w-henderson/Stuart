@@ -10,6 +10,7 @@ pub use self::function::{RawArgument, RawFunction};
 pub use self::markdown::{parse_markdown, ParsedMarkdown};
 pub use self::parser::Parser;
 
+use std::path::Path;
 use std::rc::Rc;
 
 #[derive(Clone, Debug)]
@@ -19,9 +20,9 @@ pub enum Token {
     Variable(String),
 }
 
-pub fn parse(input: &str) -> Result<Vec<Token>, TracebackError> {
+pub fn parse(input: &str, path: &Path) -> Result<Vec<Token>, TracebackError<ParseError>> {
     let chars = input.chars();
-    let mut parser = Parser::new(chars);
+    let mut parser = Parser::new(chars, path);
     let mut tokens = Vec::new();
 
     while let Ok(raw) = parser.extract_until("{{") {
@@ -51,7 +52,7 @@ pub fn parse(input: &str) -> Result<Vec<Token>, TracebackError> {
     Ok(tokens)
 }
 
-fn parse_variable(parser: &mut Parser) -> Result<Token, TracebackError> {
+fn parse_variable(parser: &mut Parser) -> Result<Token, TracebackError<ParseError>> {
     parser.expect("$")?;
 
     let variable_name = parser.extract_while(|c| c.is_alphanumeric() || c == '_' || c == '.');
@@ -63,7 +64,7 @@ fn parse_variable(parser: &mut Parser) -> Result<Token, TracebackError> {
     Ok(Token::Variable(variable_name))
 }
 
-fn parse_function(parser: &mut Parser) -> Result<Token, TracebackError> {
+fn parse_function(parser: &mut Parser) -> Result<Token, TracebackError<ParseError>> {
     let function_name = parser.extract_while(|c| c.is_alphanumeric() || c == '_');
 
     if function_name.is_empty() {

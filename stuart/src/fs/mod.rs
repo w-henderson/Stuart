@@ -12,10 +12,12 @@ pub enum Node {
         name: String,
         contents: Vec<u8>,
         parsed_contents: ParsedContents,
+        source: PathBuf,
     },
     Directory {
         name: String,
         children: Vec<Node>,
+        source: PathBuf,
     },
 }
 
@@ -25,7 +27,7 @@ pub enum Error {
     NotFound,
     Read,
     Write,
-    Parse(PathBuf, TracebackError),
+    Parse(TracebackError<ParseError>),
 }
 
 #[derive(Clone, Debug)]
@@ -103,7 +105,7 @@ impl Node {
         }
 
         match self {
-            Self::Directory { name: _, children } => {
+            Self::Directory { children, .. } => {
                 create_dir(&path).map_err(|_| Error::Write)?;
 
                 for child in children {
@@ -120,7 +122,7 @@ impl Node {
         let path = path.as_ref().to_path_buf();
 
         match self {
-            Self::Directory { name, children } => {
+            Self::Directory { name, children, .. } => {
                 let dir = path.join(name);
 
                 create_dir(&dir).map_err(|_| Error::Write)?;
@@ -159,6 +161,7 @@ impl Node {
         Ok(Node::Directory {
             name: dir.file_name().unwrap().to_string_lossy().to_string(),
             children,
+            source: dir.to_path_buf(),
         })
     }
 
@@ -170,23 +173,20 @@ impl Node {
         let contents_string = std::str::from_utf8(&contents).map_err(|_| Error::Read);
 
         let parsed_contents = match extension.as_deref() {
-            Some("html") => ParsedContents::Html(
-                parse(contents_string?).map_err(|e| Error::Parse(file.to_path_buf(), e))?,
-            ),
+            Some("html") => {
+                ParsedContents::Html(parse(contents_string?, file).map_err(Error::Parse)?)
+            }
             Some("md") => ParsedContents::Markdown(
-                parse_markdown(contents_string?.to_string())
-                    .map_err(|e| Error::Parse(file.to_path_buf(), e))?,
+                parse_markdown(contents_string?.to_string(), file).map_err(Error::Parse)?,
             ),
             Some("json") => {
                 ParsedContents::Json(humphrey_json::from_str(contents_string?).map_err(|_| {
-                    Error::Parse(
-                        file.to_path_buf(),
-                        TracebackError {
-                            kind: ParseError::InvalidJson,
-                            column: 0,
-                            line: 0,
-                        },
-                    )
+                    Error::Parse(TracebackError {
+                        path: file.to_path_buf(),
+                        kind: ParseError::InvalidJson,
+                        column: 0,
+                        line: 0,
+                    })
                 })?)
             }
             _ => ParsedContents::None,
@@ -196,6 +196,7 @@ impl Node {
             name,
             contents,
             parsed_contents,
+            source: file.to_path_buf(),
         })
     }
 }
@@ -207,16 +208,23 @@ impl Debug for Node {
                 name,
                 contents,
                 parsed_contents,
+                source,
             } => f
                 .debug_struct("File")
                 .field("name", name)
                 .field("contents", &format!("{} bytes", contents.len()))
                 .field("parsed_contents", parsed_contents)
+                .field("source", source)
                 .finish(),
-            Self::Directory { name, children } => f
+            Self::Directory {
+                name,
+                children,
+                source,
+            } => f
                 .debug_struct("Directory")
                 .field("name", name)
                 .field("children", children)
+                .field("source", source)
                 .finish(),
         }
     }

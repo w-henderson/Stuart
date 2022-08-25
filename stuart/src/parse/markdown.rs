@@ -2,13 +2,18 @@ use super::{ParseError, TracebackError};
 
 use pulldown_cmark::{html, Options, Parser};
 
+use std::path::Path;
+
 #[derive(Clone, Debug)]
 pub struct ParsedMarkdown {
     frontmatter: Vec<(String, String)>,
     body: String,
 }
 
-pub fn parse_markdown(input: String) -> Result<ParsedMarkdown, TracebackError> {
+pub fn parse_markdown(
+    input: String,
+    path: &Path,
+) -> Result<ParsedMarkdown, TracebackError<ParseError>> {
     let (lines_to_skip, frontmatter) = if input.starts_with("---\n") || input.starts_with("---\r\n")
     {
         let mut dashed_lines: u8 = 0;
@@ -32,6 +37,7 @@ pub fn parse_markdown(input: String) -> Result<ParsedMarkdown, TracebackError> {
                 let key = parts
                     .next()
                     .ok_or(TracebackError {
+                        path: path.to_path_buf(),
                         line: i as u32,
                         column: 0,
                         kind: ParseError::InvalidFrontmatter,
@@ -42,6 +48,7 @@ pub fn parse_markdown(input: String) -> Result<ParsedMarkdown, TracebackError> {
                 let value = parts
                     .next()
                     .ok_or(TracebackError {
+                        path: path.to_path_buf(),
                         line: i as u32,
                         column: 0,
                         kind: ParseError::InvalidFrontmatter,
@@ -50,6 +57,7 @@ pub fn parse_markdown(input: String) -> Result<ParsedMarkdown, TracebackError> {
                     .strip_prefix('"')
                     .and_then(|v| v.strip_suffix('"'))
                     .ok_or(TracebackError {
+                        path: path.to_path_buf(),
                         kind: ParseError::InvalidFrontmatter,
                         line: i as u32,
                         column: 0,
@@ -62,6 +70,7 @@ pub fn parse_markdown(input: String) -> Result<ParsedMarkdown, TracebackError> {
 
         if dashed_lines != 2 {
             return Err(TracebackError {
+                path: path.to_path_buf(),
                 kind: ParseError::UnexpectedEOF,
                 line: input.lines().count() as u32,
                 column: 0,

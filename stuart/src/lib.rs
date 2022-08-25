@@ -8,7 +8,7 @@ pub mod functions;
 use crate::fs::Node;
 use crate::parse::Token;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 define_functions![
     functions::parsers::Begin,
@@ -32,6 +32,14 @@ pub struct Stuart {
 pub struct SpecialFiles {
     pub root: Option<Vec<Token>>,
     pub md: Option<Vec<Token>>,
+}
+
+#[derive(Clone, Debug)]
+pub struct TracebackError<T> {
+    pub(crate) path: PathBuf,
+    pub(crate) line: u32,
+    pub(crate) column: u32,
+    pub(crate) kind: T,
 }
 
 impl Stuart {
