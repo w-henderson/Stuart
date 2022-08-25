@@ -2,10 +2,25 @@ pub mod fs;
 pub mod parse;
 pub mod process;
 
+#[macro_use]
+pub mod functions;
+
 use crate::fs::Node;
 use crate::parse::Token;
 
 use std::path::Path;
+
+define_functions![
+    functions::parsers::Begin,
+    functions::parsers::DateFormat,
+    functions::parsers::End,
+    functions::parsers::Excerpt,
+    functions::parsers::For,
+    functions::parsers::IfDefined,
+    functions::parsers::Insert,
+    functions::parsers::Timestamp,
+    functions::parsers::TimeToRead,
+];
 
 #[derive(Debug)]
 pub struct Stuart {

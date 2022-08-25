@@ -1,17 +1,21 @@
 mod error;
-mod functions;
+mod function;
 mod markdown;
 mod parser;
 
+use crate::functions::Function;
+
 pub use self::error::{ParseError, TracebackError};
-pub use self::functions::{Function, RawArgument, RawFunction};
+pub use self::function::{RawArgument, RawFunction};
 pub use self::markdown::{parse_markdown, ParsedMarkdown};
 pub use self::parser::Parser;
+
+use std::rc::Rc;
 
 #[derive(Clone, Debug)]
 pub enum Token {
     Raw(String),
-    Function(Function),
+    Function(Rc<Box<dyn Function>>),
     Variable(String),
 }
 
@@ -129,7 +133,15 @@ fn parse_function(parser: &mut Parser) -> Result<Token, TracebackError> {
         named_args,
     };
 
-    let function = Function::try_from(raw_function).map_err(|e| parser.traceback(e))?;
+    for function_parser in &*crate::FUNCTION_PARSERS {
+        if function_parser.can_parse(&raw_function) {
+            return Ok(Token::Function(Rc::new(
+                function_parser
+                    .parse(raw_function)
+                    .map_err(|e| parser.traceback(e))?,
+            )));
+        }
+    }
 
-    Ok(Token::Function(function))
+    Err(parser.traceback(ParseError::InvalidFunctionName))
 }
