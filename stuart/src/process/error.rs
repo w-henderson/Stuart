@@ -5,7 +5,9 @@ pub enum ProcessError {
     MissingHtmlRoot,
     MissingMarkdownRoot,
     StackError,
+    EndWithoutBegin,
     UndefinedVariable(String),
+    UndefinedSection(String),
     NullError(String),
 
     InvalidDataType {

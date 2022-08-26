@@ -1,5 +1,6 @@
 use crate::functions::{quiet_assert, Function, FunctionParser};
 use crate::parse::{ParseError, RawArgument, RawFunction};
+use crate::process::stack::StackFrame;
 use crate::process::{ProcessError, Scope};
 
 pub struct BeginParser;
@@ -39,6 +40,10 @@ impl Function for BeginFunction {
     }
 
     fn execute(&self, scope: &mut Scope) -> Result<(), ProcessError> {
-        todo!()
+        scope
+            .stack
+            .push(StackFrame::new(format!("begin:{}", self.label)));
+
+        Ok(())
     }
 }

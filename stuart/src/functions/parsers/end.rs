@@ -39,6 +39,19 @@ impl Function for EndFunction {
     }
 
     fn execute(&self, scope: &mut Scope) -> Result<(), ProcessError> {
-        todo!()
+        match self.custom {
+            true => {
+                let frame = scope.stack.pop().ok_or(ProcessError::EndWithoutBegin)?;
+
+                if frame.name != format!("begin:{}", self.label) {
+                    return Err(ProcessError::EndWithoutBegin);
+                }
+
+                scope.sections.push((self.label.clone(), frame.output));
+            }
+            false => todo!(),
+        }
+
+        Ok(())
     }
 }

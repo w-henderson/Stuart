@@ -1,9 +1,11 @@
 pub mod error;
+pub mod iter;
 pub mod stack;
 
 pub use self::error::ProcessError;
 
 use self::error::TracebackError;
+use self::iter::TokenIter;
 use self::stack::StackFrame;
 
 use crate::fs::{Node, ParsedContents};
@@ -13,6 +15,7 @@ use crate::{SpecialFiles, Stuart};
 use humphrey_json::Value;
 
 pub struct Scope<'a> {
+    pub tokens: &'a mut TokenIter<'a>,
     pub stack: &'a mut Vec<StackFrame>,
     pub processor: &'a Stuart,
     pub sections: &'a mut Vec<(String, Vec<u8>)>,
@@ -47,16 +50,18 @@ impl Node {
             kind: ProcessError::MissingHtmlRoot,
         })?;
 
+        let mut token_iter = TokenIter::new(tokens);
         let mut stack: Vec<StackFrame> = vec![StackFrame::new("base")];
         let mut sections: Vec<(String, Vec<u8>)> = Vec::new();
         let mut scope = Scope {
+            tokens: &mut token_iter,
             stack: &mut stack,
             processor,
             sections: &mut sections,
         };
 
-        for token in tokens {
-            Node::process_token(token, &mut scope).map_err(|kind| TracebackError {
+        while let Some(token) = scope.tokens.next() {
+            token.process(&mut scope).map_err(|kind| TracebackError {
                 path: self.source().to_path_buf(),
                 line: 0,
                 column: 0,
@@ -65,7 +70,7 @@ impl Node {
         }
 
         for token in &root {
-            Node::process_token(token, &mut scope).map_err(|kind| TracebackError {
+            token.process(&mut scope).map_err(|kind| TracebackError {
                 path: self.source().to_path_buf(),
                 line: 0,
                 column: 0,
@@ -96,6 +101,7 @@ impl Node {
             kind: ProcessError::MissingMarkdownRoot,
         })?;
 
+        let mut token_iter = TokenIter::new(&md_tokens);
         let mut stack: Vec<StackFrame> = vec![{
             let mut frame = StackFrame::new("base");
             frame.add_variable("self", md.to_value());
@@ -103,13 +109,14 @@ impl Node {
         }];
         let mut sections: Vec<(String, Vec<u8>)> = Vec::new();
         let mut scope = Scope {
+            tokens: &mut token_iter,
             stack: &mut stack,
             processor,
             sections: &mut sections,
         };
 
-        for token in &md_tokens {
-            Node::process_token(token, &mut scope).map_err(|kind| TracebackError {
+        while let Some(token) = scope.tokens.next() {
+            token.process(&mut scope).map_err(|kind| TracebackError {
                 path: self.source().to_path_buf(),
                 line: 0,
                 column: 0,
@@ -118,7 +125,7 @@ impl Node {
         }
 
         for token in &root {
-            Node::process_token(token, &mut scope).map_err(|kind| TracebackError {
+            token.process(&mut scope).map_err(|kind| TracebackError {
                 path: self.source().to_path_buf(),
                 line: 0,
                 column: 0,
@@ -130,11 +137,13 @@ impl Node {
 
         Ok((Some(stack.pop().unwrap().output), Some(new_name)))
     }
+}
 
-    fn process_token(token: &Token, scope: &mut Scope) -> Result<(), ProcessError> {
+impl Token {
+    fn process(&self, scope: &mut Scope) -> Result<(), ProcessError> {
         let stack_depth = scope.stack.len();
 
-        match token {
+        match self {
             Token::Raw(raw) => scope.stack[stack_depth - 1]
                 .output
                 .extend_from_slice(raw.as_bytes()),
@@ -188,9 +197,9 @@ impl Node {
                     scope.stack[stack_depth - 1]
                         .output
                         .extend_from_slice(s.as_bytes());
+                } else {
+                    return Err(ProcessError::UndefinedVariable(variable_name.to_string()));
                 }
-
-                return Err(ProcessError::UndefinedVariable(variable_name.to_string()));
             }
         }
 
