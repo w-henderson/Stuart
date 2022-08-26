@@ -29,6 +29,10 @@ impl FunctionParser for TimestampParser {
 }
 
 impl Function for TimestampFunction {
+    fn name(&self) -> &'static str {
+        "timestamp"
+    }
+
     fn execute(&self, scope: &mut Scope) -> Result<(), ProcessError> {
         todo!()
     }

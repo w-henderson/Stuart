@@ -1,10 +1,10 @@
 pub mod error;
-pub mod variable;
+pub mod stack;
 
 pub use self::error::ProcessError;
 
 use self::error::TracebackError;
-use self::variable::StackFrame;
+use self::stack::StackFrame;
 
 use crate::fs::{Node, ParsedContents};
 use crate::parse::{ParsedMarkdown, Token};
@@ -13,10 +13,9 @@ use crate::{SpecialFiles, Stuart};
 use humphrey_json::Value;
 
 pub struct Scope<'a> {
-    stack: &'a mut Vec<StackFrame>,
-    output: &'a mut Vec<u8>,
-    processor: &'a Stuart,
-    queue: &'a mut [&'a [Token]],
+    pub stack: &'a mut Vec<StackFrame>,
+    pub processor: &'a Stuart,
+    pub sections: &'a mut Vec<(String, Vec<u8>)>,
 }
 
 impl Node {
@@ -24,15 +23,14 @@ impl Node {
         &self,
         processor: &Stuart,
         special_files: SpecialFiles,
-    ) -> Result<Option<Vec<u8>>, TracebackError<ProcessError>> {
+    ) -> Result<(Option<Vec<u8>>, Option<String>), TracebackError<ProcessError>> {
         Ok(match self.parsed_contents() {
-            ParsedContents::Html(tokens) => {
-                Some(self.process_html(tokens, processor, special_files)?)
-            }
-            ParsedContents::Markdown(md) => {
-                Some(self.process_markdown(md, processor, special_files)?)
-            }
-            _ => None,
+            ParsedContents::Html(tokens) => (
+                Some(self.process_html(tokens, processor, special_files)?),
+                None,
+            ),
+            ParsedContents::Markdown(md) => self.process_markdown(md, processor, special_files)?,
+            _ => (None, None),
         })
     }
 
@@ -49,24 +47,33 @@ impl Node {
             kind: ProcessError::MissingHtmlRoot,
         })?;
 
-        let mut output: Vec<u8> = Vec::new();
-        let mut stack: Vec<StackFrame> = Vec::new();
-        let mut queue: Vec<&[Token]> = vec![tokens];
+        let mut stack: Vec<StackFrame> = vec![StackFrame::new("base")];
+        let mut sections: Vec<(String, Vec<u8>)> = Vec::new();
         let mut scope = Scope {
             stack: &mut stack,
-            output: &mut output,
             processor,
-            queue: &mut queue,
+            sections: &mut sections,
         };
 
-        Node::process_tokens(&root, &mut scope).map_err(|kind| TracebackError {
-            path: self.source().to_path_buf(),
-            line: 0,
-            column: 0,
-            kind,
-        })?;
+        for token in tokens {
+            Node::process_token(token, &mut scope).map_err(|kind| TracebackError {
+                path: self.source().to_path_buf(),
+                line: 0,
+                column: 0,
+                kind,
+            })?;
+        }
 
-        Ok(output)
+        for token in &root {
+            Node::process_token(token, &mut scope).map_err(|kind| TracebackError {
+                path: self.source().to_path_buf(),
+                line: 0,
+                column: 0,
+                kind,
+            })?;
+        }
+
+        Ok(stack.pop().unwrap().output)
     }
 
     fn process_markdown(
@@ -74,7 +81,7 @@ impl Node {
         md: &ParsedMarkdown,
         processor: &Stuart,
         special_files: SpecialFiles,
-    ) -> Result<Vec<u8>, TracebackError<ProcessError>> {
+    ) -> Result<(Option<Vec<u8>>, Option<String>), TracebackError<ProcessError>> {
         let root = special_files.root.ok_or(TracebackError {
             path: self.source().to_path_buf(),
             line: 0,
@@ -89,85 +96,102 @@ impl Node {
             kind: ProcessError::MissingMarkdownRoot,
         })?;
 
-        let mut output: Vec<u8> = Vec::new();
-        let mut stack: Vec<StackFrame> = vec![StackFrame {
-            variables: vec![("self".to_string(), md.to_value())],
+        let mut stack: Vec<StackFrame> = vec![{
+            let mut frame = StackFrame::new("base");
+            frame.add_variable("self", md.to_value());
+            frame
         }];
-        let mut queue: Vec<&[Token]> = vec![&md_tokens];
+        let mut sections: Vec<(String, Vec<u8>)> = Vec::new();
         let mut scope = Scope {
             stack: &mut stack,
-            output: &mut output,
             processor,
-            queue: &mut queue,
+            sections: &mut sections,
         };
 
-        Node::process_tokens(&root, &mut scope).map_err(|kind| TracebackError {
-            path: self.source().to_path_buf(),
-            line: 0,
-            column: 0,
-            kind,
-        })?;
-
-        Ok(output)
-    }
-
-    fn process_tokens(tokens: &[Token], scope: &mut Scope) -> Result<(), ProcessError> {
-        let stack_depth = scope.stack.len();
-
-        for token in tokens {
-            match token {
-                Token::Raw(raw) => scope.output.extend_from_slice(raw.as_bytes()),
-                Token::Function(function) => function.execute(scope)?,
-                Token::Variable(variable) => {
-                    let mut variable_iter = variable.split('.');
-                    let variable_name = variable_iter.next().unwrap();
-                    let variable_indexes = variable_iter.collect::<Vec<_>>();
-
-                    for frame in scope.stack.iter().rev() {
-                        if let Some(value) = frame
-                            .get_variable(variable_name)
-                            .map(|v| variable::get_value(&variable_indexes, v))
-                        {
-                            match value {
-                                Value::String(s) => {
-                                    scope.output.extend_from_slice(s.as_bytes());
-                                    Ok(())
-                                }
-
-                                Value::Null => Err(ProcessError::NullError(variable.to_string())),
-                                Value::Bool(_) => Err(ProcessError::InvalidDataType {
-                                    variable: variable.to_string(),
-                                    expected: "string".to_string(),
-                                    found: "bool".to_string(),
-                                }),
-                                Value::Number(_) => Err(ProcessError::InvalidDataType {
-                                    variable: variable.to_string(),
-                                    expected: "string".to_string(),
-                                    found: "number".to_string(),
-                                }),
-                                Value::Array(_) => Err(ProcessError::InvalidDataType {
-                                    variable: variable.to_string(),
-                                    expected: "string".to_string(),
-                                    found: "array".to_string(),
-                                }),
-                                Value::Object(_) => Err(ProcessError::InvalidDataType {
-                                    variable: variable.to_string(),
-                                    expected: "string".to_string(),
-                                    found: "object".to_string(),
-                                }),
-                            }?;
-
-                            continue;
-                        }
-                    }
-
-                    return Err(ProcessError::UndefinedVariable(variable_name.to_string()));
-                }
-            }
+        for token in &md_tokens {
+            Node::process_token(token, &mut scope).map_err(|kind| TracebackError {
+                path: self.source().to_path_buf(),
+                line: 0,
+                column: 0,
+                kind,
+            })?;
         }
 
-        if stack_depth != scope.stack.len() {
-            return Err(ProcessError::StackError);
+        for token in &root {
+            Node::process_token(token, &mut scope).map_err(|kind| TracebackError {
+                path: self.source().to_path_buf(),
+                line: 0,
+                column: 0,
+                kind,
+            })?;
+        }
+
+        let new_name = format!("{}.html", self.name().strip_suffix(".md").unwrap());
+
+        Ok((Some(stack.pop().unwrap().output), Some(new_name)))
+    }
+
+    fn process_token(token: &Token, scope: &mut Scope) -> Result<(), ProcessError> {
+        let stack_depth = scope.stack.len();
+
+        match token {
+            Token::Raw(raw) => scope.stack[stack_depth - 1]
+                .output
+                .extend_from_slice(raw.as_bytes()),
+
+            Token::Function(function) => function.execute(scope)?,
+
+            Token::Variable(variable) => {
+                let mut variable_iter = variable.split('.');
+                let variable_name = variable_iter.next().unwrap();
+                let variable_indexes = variable_iter.collect::<Vec<_>>();
+
+                let mut string = None;
+
+                for frame in scope.stack.iter().rev() {
+                    if let Some(value) = frame
+                        .get_variable(variable_name)
+                        .map(|v| stack::get_value(&variable_indexes, v))
+                    {
+                        match value {
+                            Value::String(s) => {
+                                string = Some(s);
+                                break;
+                            }
+
+                            Value::Null => Err(ProcessError::NullError(variable.to_string())),
+                            Value::Bool(_) => Err(ProcessError::InvalidDataType {
+                                variable: variable.to_string(),
+                                expected: "string".to_string(),
+                                found: "bool".to_string(),
+                            }),
+                            Value::Number(_) => Err(ProcessError::InvalidDataType {
+                                variable: variable.to_string(),
+                                expected: "string".to_string(),
+                                found: "number".to_string(),
+                            }),
+                            Value::Array(_) => Err(ProcessError::InvalidDataType {
+                                variable: variable.to_string(),
+                                expected: "string".to_string(),
+                                found: "array".to_string(),
+                            }),
+                            Value::Object(_) => Err(ProcessError::InvalidDataType {
+                                variable: variable.to_string(),
+                                expected: "string".to_string(),
+                                found: "object".to_string(),
+                            }),
+                        }?;
+                    }
+                }
+
+                if let Some(s) = string {
+                    scope.stack[stack_depth - 1]
+                        .output
+                        .extend_from_slice(s.as_bytes());
+                }
+
+                return Err(ProcessError::UndefinedVariable(variable_name.to_string()));
+            }
         }
 
         Ok(())

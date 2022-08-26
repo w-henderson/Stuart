@@ -20,6 +20,29 @@ pub enum Token {
     Variable(String),
 }
 
+impl Token {
+    pub fn as_raw(&self) -> Option<&str> {
+        match self {
+            Token::Raw(s) => Some(s.as_str()),
+            _ => None,
+        }
+    }
+
+    pub fn as_function(&self) -> Option<Rc<Box<dyn Function>>> {
+        match self {
+            Token::Function(f) => Some(f.clone()),
+            _ => None,
+        }
+    }
+
+    pub fn as_variable(&self) -> Option<&str> {
+        match self {
+            Token::Variable(s) => Some(s.as_str()),
+            _ => None,
+        }
+    }
+}
+
 pub fn parse(input: &str, path: &Path) -> Result<Vec<Token>, TracebackError<ParseError>> {
     let chars = input.chars();
     let mut parser = Parser::new(chars, path);

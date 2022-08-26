@@ -36,6 +36,7 @@ pub trait FunctionParser: Send + Sync {
 }
 
 pub trait Function: Debug + Send + Sync {
+    fn name(&self) -> &'static str;
     fn execute(&self, scope: &mut Scope) -> Result<(), ProcessError>;
 }
 

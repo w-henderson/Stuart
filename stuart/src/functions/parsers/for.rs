@@ -87,6 +87,10 @@ impl FunctionParser for ForParser {
 }
 
 impl Function for ForFunction {
+    fn name(&self) -> &'static str {
+        "for"
+    }
+
     fn execute(&self, scope: &mut Scope) -> Result<(), ProcessError> {
         todo!()
     }

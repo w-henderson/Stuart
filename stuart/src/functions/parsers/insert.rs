@@ -1,5 +1,6 @@
 use crate::functions::{quiet_assert, Function, FunctionParser};
 use crate::parse::{ParseError, RawFunction};
+use crate::process::stack::StackFrame;
 use crate::process::{ProcessError, Scope};
 
 pub struct InsertParser;
@@ -29,7 +30,11 @@ impl FunctionParser for InsertParser {
 }
 
 impl Function for InsertFunction {
+    fn name(&self) -> &'static str {
+        "insert"
+    }
+
     fn execute(&self, scope: &mut Scope) -> Result<(), ProcessError> {
-        todo!()
+        Ok(())
     }
 }

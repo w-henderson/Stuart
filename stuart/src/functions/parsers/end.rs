@@ -34,6 +34,10 @@ impl FunctionParser for EndParser {
 }
 
 impl Function for EndFunction {
+    fn name(&self) -> &'static str {
+        "end"
+    }
+
     fn execute(&self, scope: &mut Scope) -> Result<(), ProcessError> {
         todo!()
     }

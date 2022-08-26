@@ -37,6 +37,10 @@ impl FunctionParser for ExcerptParser {
 }
 
 impl Function for ExcerptFunction {
+    fn name(&self) -> &'static str {
+        "excerpt"
+    }
+
     fn execute(&self, scope: &mut Scope) -> Result<(), ProcessError> {
         todo!()
     }

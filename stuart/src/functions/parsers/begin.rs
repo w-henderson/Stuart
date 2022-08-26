@@ -34,6 +34,10 @@ impl FunctionParser for BeginParser {
 }
 
 impl Function for BeginFunction {
+    fn name(&self) -> &'static str {
+        "begin"
+    }
+
     fn execute(&self, scope: &mut Scope) -> Result<(), ProcessError> {
         todo!()
     }

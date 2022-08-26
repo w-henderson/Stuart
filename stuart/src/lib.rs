@@ -58,19 +58,19 @@ impl Stuart {
                 self.stack.push(0);
             }
 
-            let new_body = match self.stack_target() {
+            let (new_body, new_name) = match self.stack_target() {
                 Some(n) if n.is_file() => {
-                    let new_body = if n.name() != "root.html" && n.name() != "md.html" {
+                    let new = if n.name() != "root.html" && n.name() != "md.html" {
                         let special_files = self.nearest_special_files();
-                        n.process(&self, special_files.unwrap())?
+                        n.process(self, special_files.unwrap())?
                     } else {
-                        None
+                        (None, None)
                     };
 
                     let index = self.stack.pop().unwrap();
                     self.stack.push(index + 1);
 
-                    new_body
+                    new
                 }
                 None => {
                     self.stack.pop();
@@ -82,7 +82,7 @@ impl Stuart {
                         self.stack.push(index + 1);
                     }
 
-                    None
+                    (None, None)
                 }
                 _ => unreachable!(),
             };
@@ -93,6 +93,13 @@ impl Stuart {
                         ref mut contents, ..
                     } => *contents = new_body,
                     Node::Directory { .. } => panic!("Cannot update body of directory"),
+                }
+            }
+
+            if let Some(new_name) = new_name {
+                match &mut *self.stack_target_mut().unwrap() {
+                    Node::File { ref mut name, .. } => *name = new_name,
+                    Node::Directory { .. } => panic!("Cannot update name of directory"),
                 }
             }
         }

@@ -29,6 +29,10 @@ impl FunctionParser for TimeToReadParser {
 }
 
 impl Function for TimeToReadFunction {
+    fn name(&self) -> &'static str {
+        "timetoread"
+    }
+
     fn execute(&self, scope: &mut Scope) -> Result<(), ProcessError> {
         todo!()
     }

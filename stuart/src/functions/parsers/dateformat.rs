@@ -29,6 +29,10 @@ impl FunctionParser for DateFormatParser {
 }
 
 impl Function for DateFormatFunction {
+    fn name(&self) -> &'static str {
+        "dateformat"
+    }
+
     fn execute(&self, scope: &mut Scope) -> Result<(), ProcessError> {
         todo!()
     }

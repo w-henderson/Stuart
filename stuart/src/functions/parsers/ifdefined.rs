@@ -29,6 +29,10 @@ impl FunctionParser for IfDefinedParser {
 }
 
 impl Function for IfDefinedFunction {
+    fn name(&self) -> &'static str {
+        "ifdefined"
+    }
+
     fn execute(&self, scope: &mut Scope) -> Result<(), ProcessError> {
         todo!()
     }
