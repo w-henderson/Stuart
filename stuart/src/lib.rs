@@ -60,26 +60,18 @@ impl Stuart {
 
             let (new_body, new_name) = match self.stack_target() {
                 Some(n) if n.is_file() => {
-                    let new = if n.name() != "root.html" && n.name() != "md.html" {
+                    if n.name() != "root.html" && n.name() != "md.html" {
                         let special_files = self.nearest_special_files();
                         n.process(self, special_files.unwrap())?
                     } else {
                         (None, None)
-                    };
-
-                    let index = self.stack.pop().unwrap();
-                    self.stack.push(index + 1);
-
-                    new
+                    }
                 }
                 None => {
                     self.stack.pop();
 
                     if self.stack.is_empty() {
                         break;
-                    } else {
-                        let index = self.stack.pop().unwrap();
-                        self.stack.push(index + 1);
                     }
 
                     (None, None)
@@ -90,8 +82,18 @@ impl Stuart {
             if let Some(new_body) = new_body {
                 match &mut *self.stack_target_mut().unwrap() {
                     Node::File {
-                        ref mut contents, ..
-                    } => *contents = new_body,
+                        ref mut contents,
+                        name,
+                        ..
+                    } => {
+                        *contents = new_body.clone();
+
+                        println!(
+                            "updated {} body to {}",
+                            name,
+                            String::from_utf8(new_body).unwrap()
+                        );
+                    }
                     Node::Directory { .. } => panic!("Cannot update body of directory"),
                 }
             }
@@ -102,6 +104,9 @@ impl Stuart {
                     Node::Directory { .. } => panic!("Cannot update name of directory"),
                 }
             }
+
+            let index = self.stack.pop().unwrap();
+            self.stack.push(index + 1);
         }
 
         Ok(())

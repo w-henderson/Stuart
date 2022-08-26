@@ -69,17 +69,23 @@ impl<'a> Parser<'a> {
     }
 
     /// does not include the pattern
-    pub fn extract_until(&mut self, s: &str) -> Result<String, TracebackError<ParseError>> {
+    pub fn extract_until(&mut self, s: &str) -> Option<String> {
         let mut result = String::with_capacity(128);
+        let old_chars = self.chars.clone();
 
         loop {
-            let c = self.next()?;
-            result.push(c);
+            if let Ok(c) = self.next() {
+                result.push(c);
 
-            if result.ends_with(s) {
-                result.truncate(result.len() - s.len());
+                if result.ends_with(s) {
+                    result.truncate(result.len() - s.len());
 
-                return Ok(result);
+                    return Some(result);
+                }
+            } else {
+                self.chars = old_chars;
+
+                return None;
             }
         }
     }

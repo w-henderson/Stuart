@@ -48,7 +48,7 @@ pub fn parse(input: &str, path: &Path) -> Result<Vec<Token>, TracebackError<Pars
     let mut parser = Parser::new(chars, path);
     let mut tokens = Vec::new();
 
-    while let Ok(raw) = parser.extract_until("{{") {
+    while let Some(raw) = parser.extract_until("{{") {
         if !raw.is_empty() {
             tokens.push(Token::Raw(raw));
         }

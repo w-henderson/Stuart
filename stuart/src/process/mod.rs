@@ -27,6 +27,8 @@ impl Node {
         processor: &Stuart,
         special_files: SpecialFiles,
     ) -> Result<(Option<Vec<u8>>, Option<String>), TracebackError<ProcessError>> {
+        println!("processing {}", self.name());
+
         Ok(match self.parsed_contents() {
             ParsedContents::Html(tokens) => (
                 Some(self.process_html(tokens, processor, special_files)?),
@@ -69,7 +71,35 @@ impl Node {
             })?;
         }
 
-        for token in &root {
+        println!(
+            "sections: {:?}",
+            scope
+                .sections
+                .iter()
+                .map(|(name, contents)| (name, String::from_utf8(contents.clone()).unwrap()))
+                .collect::<Vec<_>>()
+        );
+
+        if !scope
+            .stack
+            .pop()
+            .map(|frame| frame.name == "base")
+            .unwrap_or(false)
+        {
+            return Err(TracebackError {
+                path: self.source().to_path_buf(),
+                line: 0,
+                column: 0,
+                kind: ProcessError::StackError,
+            });
+        }
+
+        let mut token_iter = TokenIter::new(&root);
+
+        scope.stack.push(StackFrame::new("base2"));
+        scope.tokens = &mut token_iter;
+
+        while let Some(token) = scope.tokens.next() {
             token.process(&mut scope).map_err(|kind| TracebackError {
                 path: self.source().to_path_buf(),
                 line: 0,
@@ -141,10 +171,11 @@ impl Node {
 
 impl Token {
     fn process(&self, scope: &mut Scope) -> Result<(), ProcessError> {
-        let stack_depth = scope.stack.len();
-
         match self {
-            Token::Raw(raw) => scope.stack[stack_depth - 1]
+            Token::Raw(raw) => scope
+                .stack
+                .last_mut()
+                .unwrap()
                 .output
                 .extend_from_slice(raw.as_bytes()),
 
@@ -194,7 +225,10 @@ impl Token {
                 }
 
                 if let Some(s) = string {
-                    scope.stack[stack_depth - 1]
+                    scope
+                        .stack
+                        .last_mut()
+                        .unwrap()
                         .output
                         .extend_from_slice(s.as_bytes());
                 } else {

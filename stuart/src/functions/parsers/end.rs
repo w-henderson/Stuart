@@ -47,6 +47,13 @@ impl Function for EndFunction {
                     return Err(ProcessError::EndWithoutBegin);
                 }
 
+                scope
+                    .stack
+                    .last_mut()
+                    .ok_or(ProcessError::StackError)?
+                    .output
+                    .extend_from_slice(&frame.output);
+
                 scope.sections.push((self.label.clone(), frame.output));
             }
             false => todo!(),
