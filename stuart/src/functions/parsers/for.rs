@@ -1,5 +1,6 @@
 use crate::functions::{quiet_assert, Function, FunctionParser};
 use crate::parse::{ParseError, RawArgument, RawFunction};
+use crate::process::{ProcessError, Scope};
 
 pub struct ForParser;
 
@@ -86,7 +87,7 @@ impl FunctionParser for ForParser {
 }
 
 impl Function for ForFunction {
-    fn execute(&self) {
+    fn execute(&self, scope: &mut Scope) -> Result<(), ProcessError> {
         todo!()
     }
 }

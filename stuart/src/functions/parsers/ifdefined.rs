@@ -1,5 +1,6 @@
 use crate::functions::{quiet_assert, Function, FunctionParser};
 use crate::parse::{ParseError, RawFunction};
+use crate::process::{ProcessError, Scope};
 
 pub struct IfDefinedParser;
 
@@ -28,7 +29,7 @@ impl FunctionParser for IfDefinedParser {
 }
 
 impl Function for IfDefinedFunction {
-    fn execute(&self) {
+    fn execute(&self, scope: &mut Scope) -> Result<(), ProcessError> {
         todo!()
     }
 }

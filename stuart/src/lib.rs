@@ -7,7 +7,9 @@ pub mod functions;
 
 use crate::fs::Node;
 use crate::parse::Token;
+use crate::process::error::ProcessError;
 
+use std::fmt::Debug;
 use std::path::{Path, PathBuf};
 
 define_functions![
@@ -35,7 +37,7 @@ pub struct SpecialFiles {
 }
 
 #[derive(Clone, Debug)]
-pub struct TracebackError<T> {
+pub struct TracebackError<T: Clone + Debug> {
     pub(crate) path: PathBuf,
     pub(crate) line: u32,
     pub(crate) column: u32,
@@ -50,22 +52,25 @@ impl Stuart {
         }
     }
 
-    pub fn build(&mut self) {
+    pub fn build(&mut self) -> Result<(), TracebackError<ProcessError>> {
         loop {
             while self.stack_target().map(|n| n.is_dir()).unwrap_or(false) {
                 self.stack.push(0);
             }
 
-            let special_files = self.nearest_special_files();
-
-            match self.stack_target() {
+            let new_body = match self.stack_target() {
                 Some(n) if n.is_file() => {
-                    if n.name() != "root.html" && n.name() != "md.html" {
-                        n.process(special_files.unwrap());
-                    }
+                    let new_body = if n.name() != "root.html" && n.name() != "md.html" {
+                        let special_files = self.nearest_special_files();
+                        n.process(&self, special_files.unwrap())?
+                    } else {
+                        None
+                    };
 
                     let index = self.stack.pop().unwrap();
                     self.stack.push(index + 1);
+
+                    new_body
                 }
                 None => {
                     self.stack.pop();
@@ -76,20 +81,43 @@ impl Stuart {
                         let index = self.stack.pop().unwrap();
                         self.stack.push(index + 1);
                     }
+
+                    None
                 }
                 _ => unreachable!(),
+            };
+
+            if let Some(new_body) = new_body {
+                match &mut *self.stack_target_mut().unwrap() {
+                    Node::File {
+                        ref mut contents, ..
+                    } => *contents = new_body,
+                    Node::Directory { .. } => panic!("Cannot update body of directory"),
+                }
             }
         }
+
+        Ok(())
     }
 
     pub fn save(&self, path: impl AsRef<Path>) -> Result<(), fs::Error> {
         self.fs.save(path)
     }
 
-    fn stack_target(&mut self) -> Option<&mut Node> {
-        let mut n = &mut self.fs;
+    fn stack_target(&self) -> Option<&Node> {
+        let mut n = &self.fs;
 
         for child in &self.stack {
+            n = n.children()?.get(*child)?;
+        }
+
+        Some(n)
+    }
+
+    fn stack_target_mut(&mut self) -> Option<&mut Node> {
+        let mut n = &mut self.fs;
+
+        for child in &mut self.stack {
             n = n.children_mut()?.get_mut(*child)?;
         }
 

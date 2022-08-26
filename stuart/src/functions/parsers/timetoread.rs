@@ -1,5 +1,6 @@
 use crate::functions::{quiet_assert, Function, FunctionParser};
 use crate::parse::{ParseError, RawFunction};
+use crate::process::{ProcessError, Scope};
 
 pub struct TimeToReadParser;
 
@@ -28,7 +29,7 @@ impl FunctionParser for TimeToReadParser {
 }
 
 impl Function for TimeToReadFunction {
-    fn execute(&self) {
+    fn execute(&self, scope: &mut Scope) -> Result<(), ProcessError> {
         todo!()
     }
 }

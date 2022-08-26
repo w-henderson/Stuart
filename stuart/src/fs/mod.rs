@@ -97,6 +97,13 @@ impl Node {
         }
     }
 
+    pub fn source(&self) -> &Path {
+        match self {
+            Node::File { source, .. } => source,
+            Node::Directory { source, .. } => source,
+        }
+    }
+
     pub fn save(&self, path: impl AsRef<Path>) -> Result<(), Error> {
         let path = path.as_ref().to_path_buf();
 

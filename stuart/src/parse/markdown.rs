@@ -1,5 +1,6 @@
 use super::{ParseError, TracebackError};
 
+use humphrey_json::Value;
 use pulldown_cmark::{html, Options, Parser};
 
 use std::path::Path;
@@ -93,4 +94,18 @@ pub fn parse_markdown(
     html::push_html(&mut body, parser);
 
     Ok(ParsedMarkdown { frontmatter, body })
+}
+
+impl ParsedMarkdown {
+    pub fn to_value(&self) -> Value {
+        let mut children = self
+            .frontmatter
+            .iter()
+            .map(|(key, value)| (key.clone(), Value::String(value.clone())))
+            .collect::<Vec<_>>();
+
+        children.push(("content".to_string(), Value::String(self.body.clone())));
+
+        Value::Object(children)
+    }
 }

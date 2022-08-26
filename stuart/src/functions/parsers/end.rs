@@ -1,5 +1,6 @@
 use crate::functions::{quiet_assert, Function, FunctionParser};
 use crate::parse::{ParseError, RawArgument, RawFunction};
+use crate::process::{ProcessError, Scope};
 
 pub struct EndParser;
 
@@ -33,7 +34,7 @@ impl FunctionParser for EndParser {
 }
 
 impl Function for EndFunction {
-    fn execute(&self) {
+    fn execute(&self, scope: &mut Scope) -> Result<(), ProcessError> {
         todo!()
     }
 }
