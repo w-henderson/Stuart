@@ -7,6 +7,7 @@ pub enum ProcessError {
     StackError,
     EndWithoutBegin,
     NotJsonArray,
+    InvalidDate,
     UnexpectedEndOfFile,
     UndefinedVariable(String),
     UndefinedSection(String),

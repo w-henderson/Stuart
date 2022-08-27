@@ -14,4 +14,5 @@ pub enum ParseError {
     PositionalArgAfterNamedArg,
     InvalidFrontmatter,
     InvalidJson,
+    AssertionError(String),
 }

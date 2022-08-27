@@ -103,8 +103,15 @@ fn parse_function(parser: &mut Parser) -> Result<Token, TracebackError<ParseErro
     loop {
         parser.ignore_while(|c| c.is_whitespace());
 
+        let mut open_quote = false;
         let arg = parser
-            .extract_while(|c| c != ')' && c != ',')
+            .extract_while(|c| {
+                if c == '"' {
+                    open_quote = !open_quote;
+                }
+
+                open_quote || (c != ')' && c != ',')
+            })
             .trim()
             .to_string();
 

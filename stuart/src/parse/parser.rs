@@ -90,9 +90,9 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn extract_while<F>(&mut self, f: F) -> String
+    pub fn extract_while<F>(&mut self, mut f: F) -> String
     where
-        F: Fn(char) -> bool,
+        F: FnMut(char) -> bool,
     {
         let mut result = String::with_capacity(128);
 

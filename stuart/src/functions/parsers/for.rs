@@ -1,10 +1,11 @@
-use humphrey_json::Value;
-
 use crate::fs::ParsedContents;
-use crate::functions::{quiet_assert, Function, FunctionParser};
+use crate::functions::{Function, FunctionParser};
 use crate::parse::{ParseError, RawArgument, RawFunction};
 use crate::process::stack::StackFrame;
 use crate::process::{ProcessError, Scope};
+use crate::quiet_assert;
+
+use humphrey_json::Value;
 
 use std::path::PathBuf;
 
@@ -32,7 +33,7 @@ impl FunctionParser for ForParser {
     }
 
     fn parse(&self, raw: RawFunction) -> Result<Box<dyn Function>, ParseError> {
-        quiet_assert(raw.positional_args.len() == 2)?;
+        quiet_assert!(raw.positional_args.len() == 2)?;
 
         let variable_name = raw.positional_args[0]
             .as_variable()
@@ -62,8 +63,8 @@ impl FunctionParser for ForParser {
         for (name, arg) in &raw.named_args {
             match name.as_str() {
                 "limit" => {
-                    quiet_assert(arg.as_integer().is_some())?;
-                    quiet_assert(limit.is_none())?;
+                    quiet_assert!(arg.as_integer().is_some())?;
+                    quiet_assert!(limit.is_none())?;
 
                     limit = Some(
                         arg.as_integer()
@@ -73,8 +74,8 @@ impl FunctionParser for ForParser {
                     );
                 }
                 "sortby" => {
-                    quiet_assert(arg.as_variable().is_some())?;
-                    quiet_assert(sort_variable.is_none())?;
+                    quiet_assert!(arg.as_variable().is_some())?;
+                    quiet_assert!(sort_variable.is_none())?;
 
                     sort_variable = Some(arg.as_variable().unwrap().to_string());
                 }

@@ -6,7 +6,6 @@ pub mod parsers {
     mod r#for;
     mod ifdefined;
     mod insert;
-    mod timestamp;
     mod timetoread;
 
     pub use begin::BeginParser as Begin;
@@ -16,7 +15,6 @@ pub mod parsers {
     pub use ifdefined::IfDefinedParser as IfDefined;
     pub use insert::InsertParser as Insert;
     pub use r#for::ForParser as For;
-    pub use timestamp::TimestampParser as Timestamp;
     pub use timetoread::TimeToReadParser as TimeToRead;
 }
 
@@ -57,6 +55,16 @@ macro_rules! define_functions {
     }
 }
 
+#[macro_export]
+macro_rules! quiet_assert {
+    ($cond:expr) => {
+        match $cond {
+            true => Ok(()),
+            false => Err(ParseError::AssertionError(stringify!($cond).to_string())),
+        }
+    };
+}
+
 #[inline]
 pub fn is_ident(s: &str) -> bool {
     s == "begin"
@@ -66,12 +74,4 @@ pub fn is_ident(s: &str) -> bool {
         || s == "dateformat"
         || s == "timetoread"
         || s == "excerpt"
-}
-
-#[inline]
-pub fn quiet_assert(condition: bool) -> Result<(), ParseError> {
-    match condition {
-        true => Ok(()),
-        false => Err(ParseError::GenericSyntaxError),
-    }
 }

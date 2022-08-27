@@ -1,6 +1,7 @@
-use crate::functions::{quiet_assert, Function, FunctionParser};
+use crate::functions::{Function, FunctionParser};
 use crate::parse::{ParseError, RawArgument, RawFunction};
 use crate::process::{ProcessError, Scope};
+use crate::quiet_assert;
 
 pub struct EndParser;
 
@@ -16,8 +17,8 @@ impl FunctionParser for EndParser {
     }
 
     fn parse(&self, raw: RawFunction) -> Result<Box<dyn Function>, ParseError> {
-        quiet_assert(raw.positional_args.len() == 1)?;
-        quiet_assert(raw.named_args.is_empty())?;
+        quiet_assert!(raw.positional_args.len() == 1)?;
+        quiet_assert!(raw.named_args.is_empty())?;
 
         match &raw.positional_args[0] {
             RawArgument::String(label) => Ok(Box::new(EndFunction {

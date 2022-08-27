@@ -50,6 +50,8 @@ impl RawArgument {
         } else {
             // Invalid positional argument
 
+            println!("invalid arg");
+
             Err(ParseError::GenericSyntaxError)
         }
     }

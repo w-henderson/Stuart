@@ -1,6 +1,7 @@
-use crate::functions::{quiet_assert, Function, FunctionParser};
+use crate::functions::{Function, FunctionParser};
 use crate::parse::{ParseError, RawFunction};
 use crate::process::{ProcessError, Scope};
+use crate::quiet_assert;
 
 pub struct IfDefinedParser;
 
@@ -15,8 +16,8 @@ impl FunctionParser for IfDefinedParser {
     }
 
     fn parse(&self, raw: RawFunction) -> Result<Box<dyn Function>, ParseError> {
-        quiet_assert(raw.positional_args.len() == 1)?;
-        quiet_assert(raw.named_args.is_empty())?;
+        quiet_assert!(raw.positional_args.len() == 1)?;
+        quiet_assert!(raw.named_args.is_empty())?;
 
         let variable_name = raw.positional_args[0]
             .as_variable()

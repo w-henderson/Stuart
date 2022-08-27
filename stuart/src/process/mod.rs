@@ -179,15 +179,6 @@ impl Node {
 
 impl Token {
     pub fn process(&self, scope: &mut Scope) -> Result<(), ProcessError> {
-        println!(
-            "stack: {:?}",
-            scope
-                .stack
-                .iter()
-                .map(|frame| frame.name.clone())
-                .collect::<Vec<_>>()
-        );
-
         match self {
             Token::Raw(raw) => scope
                 .stack
@@ -253,6 +244,38 @@ impl Token {
                 }
             }
         }
+
+        Ok(())
+    }
+}
+
+impl<'a> Scope<'a> {
+    pub fn get_variable(&self, name: &str) -> Option<Value> {
+        let mut variable_iter = name.split('.');
+        let variable_name = variable_iter.next().unwrap();
+        let variable_indexes = variable_iter.collect::<Vec<_>>();
+
+        let mut variable = None;
+
+        for frame in self.stack.iter().rev() {
+            if let Some(value) = frame
+                .get_variable(variable_name)
+                .map(|v| crate::process::stack::get_value(&variable_indexes, v))
+            {
+                variable = Some(value);
+                break;
+            }
+        }
+
+        variable
+    }
+
+    pub fn output(&mut self, output: impl AsRef<[u8]>) -> Result<(), ProcessError> {
+        self.stack
+            .last_mut()
+            .ok_or(ProcessError::StackError)?
+            .output
+            .extend_from_slice(output.as_ref());
 
         Ok(())
     }

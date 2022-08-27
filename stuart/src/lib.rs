@@ -20,7 +20,6 @@ define_functions![
     functions::parsers::For,
     functions::parsers::IfDefined,
     functions::parsers::Insert,
-    functions::parsers::Timestamp,
     functions::parsers::TimeToRead,
 ];
 
