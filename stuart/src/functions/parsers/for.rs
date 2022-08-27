@@ -1,6 +1,12 @@
+use humphrey_json::Value;
+
+use crate::fs::ParsedContents;
 use crate::functions::{quiet_assert, Function, FunctionParser};
 use crate::parse::{ParseError, RawArgument, RawFunction};
+use crate::process::stack::StackFrame;
 use crate::process::{ProcessError, Scope};
+
+use std::path::PathBuf;
 
 pub struct ForParser;
 
@@ -92,6 +98,95 @@ impl Function for ForFunction {
     }
 
     fn execute(&self, scope: &mut Scope) -> Result<(), ProcessError> {
-        todo!()
+        let waypoint = scope.tokens.waypoint();
+
+        let variable_iter: Box<dyn Iterator<Item = Value>> = match self.source_type {
+            ForFunctionSourceType::MarkdownDirectory => {
+                let directory = scope
+                    .processor
+                    .fs
+                    .get_at_path(&PathBuf::from(self.source.clone()))
+                    .ok_or_else(|| ProcessError::NotFound(self.source.clone()))?;
+
+                if !directory.is_dir() {
+                    return Err(ProcessError::NotFound(self.source.clone()));
+                }
+
+                Box::new(directory.children().unwrap().iter().filter_map(|n| {
+                    match n.parsed_contents() {
+                        ParsedContents::Markdown(md) => Some(md.to_value()),
+                        _ => None,
+                    }
+                }))
+            }
+            ForFunctionSourceType::JSONFile => {
+                let file = scope
+                    .processor
+                    .fs
+                    .get_at_path(&PathBuf::from(self.source.clone()))
+                    .ok_or_else(|| ProcessError::NotFound(self.source.clone()))?;
+
+                if !file.is_file() {
+                    return Err(ProcessError::NotFound(self.source.clone()));
+                }
+
+                Box::new(
+                    match file.parsed_contents() {
+                        ParsedContents::Json(json) => json.as_array().map(|a| a.iter().cloned()),
+                        _ => None,
+                    }
+                    .ok_or(ProcessError::NotJsonArray)?,
+                )
+            }
+            ForFunctionSourceType::JSONObject => {
+                let mut variable_iter = self.source.split('.');
+                let variable_name = variable_iter.next().unwrap();
+                let variable_indexes = variable_iter.collect::<Vec<_>>();
+
+                let mut variable = None;
+
+                for frame in scope.stack.iter().rev() {
+                    if let Some(value) = frame
+                        .get_variable(variable_name)
+                        .map(|v| crate::process::stack::get_value(&variable_indexes, v))
+                    {
+                        variable = Some(value);
+                        break;
+                    }
+                }
+
+                // Clippy thinks `a.to_vec().into_iter()` is unnecessary, but it's not since we need to consume the
+                //   iterator over the local variable and return an owned version.
+                #[allow(clippy::unnecessary_to_owned)]
+                Box::new(
+                    variable
+                        .and_then(|v| v.as_array().map(|a| a.to_vec().into_iter()))
+                        .ok_or(ProcessError::NotJsonArray)?,
+                )
+            }
+        };
+
+        for variable in variable_iter {
+            scope.tokens.rewind_to(waypoint);
+
+            let frame = {
+                let mut frame = StackFrame::new(format!("for:{}", self.variable_name));
+                frame.add_variable(&self.variable_name, variable);
+                frame
+            };
+
+            let stack_height = scope.stack.len();
+            scope.stack.push(frame);
+
+            while scope.stack.len() > stack_height {
+                let token = scope
+                    .tokens
+                    .next()
+                    .ok_or(ProcessError::UnexpectedEndOfFile)?;
+                token.process(scope)?;
+            }
+        }
+
+        Ok(())
     }
 }

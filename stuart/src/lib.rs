@@ -82,18 +82,8 @@ impl Stuart {
             if let Some(new_body) = new_body {
                 match &mut *self.stack_target_mut().unwrap() {
                     Node::File {
-                        ref mut contents,
-                        name,
-                        ..
-                    } => {
-                        *contents = new_body.clone();
-
-                        println!(
-                            "updated {} body to {}",
-                            name,
-                            String::from_utf8(new_body).unwrap()
-                        );
-                    }
+                        ref mut contents, ..
+                    } => *contents = new_body,
                     Node::Directory { .. } => panic!("Cannot update body of directory"),
                 }
             }

@@ -4,7 +4,7 @@ use humphrey_json::Value;
 
 use std::fmt::Debug;
 use std::fs::{create_dir, read, read_dir, remove_dir_all, write};
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 #[derive(Clone)]
 pub enum Node {
@@ -102,6 +102,27 @@ impl Node {
             Node::File { source, .. } => source,
             Node::Directory { source, .. } => source,
         }
+    }
+
+    pub fn get_at_path(&self, path: &Path) -> Option<&Self> {
+        let mut working_path = vec![self];
+
+        for part in path.components() {
+            match part {
+                Component::Normal(name) => {
+                    working_path.push(
+                        working_path
+                            .last()
+                            .and_then(|n| n.children())
+                            .and_then(|children| children.iter().find(|n| n.name() == name))?,
+                    );
+                }
+                Component::CurDir => (),
+                _ => return None,
+            }
+        }
+
+        working_path.last().copied()
     }
 
     pub fn save(&self, path: impl AsRef<Path>) -> Result<(), Error> {

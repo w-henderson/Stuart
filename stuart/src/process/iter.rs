@@ -5,6 +5,7 @@ pub struct TokenIter<'a> {
     index: usize,
 }
 
+#[derive(Clone, Copy)]
 pub struct TokenIterWaypoint(usize);
 
 impl<'a> TokenIter<'a> {

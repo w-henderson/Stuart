@@ -44,12 +44,6 @@ impl Function for InsertFunction {
 
         frame.output.extend_from_slice(section);
 
-        println!(
-            "inserted {} with value {}",
-            self.label,
-            std::str::from_utf8(section).unwrap()
-        );
-
         Ok(())
     }
 }

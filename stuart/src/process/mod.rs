@@ -27,8 +27,6 @@ impl Node {
         processor: &Stuart,
         special_files: SpecialFiles,
     ) -> Result<(Option<Vec<u8>>, Option<String>), TracebackError<ProcessError>> {
-        println!("processing {}", self.name());
-
         Ok(match self.parsed_contents() {
             ParsedContents::Html(tokens) => (
                 Some(self.process_html(tokens, processor, special_files)?),
@@ -70,15 +68,6 @@ impl Node {
                 kind,
             })?;
         }
-
-        println!(
-            "sections: {:?}",
-            scope
-                .sections
-                .iter()
-                .map(|(name, contents)| (name, String::from_utf8(contents.clone()).unwrap()))
-                .collect::<Vec<_>>()
-        );
 
         if !scope
             .stack
@@ -170,7 +159,16 @@ impl Node {
 }
 
 impl Token {
-    fn process(&self, scope: &mut Scope) -> Result<(), ProcessError> {
+    pub fn process(&self, scope: &mut Scope) -> Result<(), ProcessError> {
+        println!(
+            "stack: {:?}",
+            scope
+                .stack
+                .iter()
+                .map(|frame| frame.name.clone())
+                .collect::<Vec<_>>()
+        );
+
         match self {
             Token::Raw(raw) => scope
                 .stack

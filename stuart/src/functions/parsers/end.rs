@@ -39,8 +39,8 @@ impl Function for EndFunction {
     }
 
     fn execute(&self, scope: &mut Scope) -> Result<(), ProcessError> {
-        match self.custom {
-            true => {
+        match (self.custom, self.label.as_str()) {
+            (true, _) => {
                 let frame = scope.stack.pop().ok_or(ProcessError::EndWithoutBegin)?;
 
                 if frame.name != format!("begin:{}", self.label) {
@@ -56,7 +56,23 @@ impl Function for EndFunction {
 
                 scope.sections.push((self.label.clone(), frame.output));
             }
-            false => todo!(),
+            (false, "for") => {
+                let frame = scope.stack.pop().ok_or(ProcessError::EndWithoutBegin)?;
+
+                if !frame.name.starts_with("for:") {
+                    return Err(ProcessError::EndWithoutBegin);
+                }
+
+                scope
+                    .stack
+                    .last_mut()
+                    .ok_or(ProcessError::StackError)?
+                    .output
+                    .extend_from_slice(&frame.output);
+            }
+            _ => {
+                return Err(ProcessError::EndWithoutBegin);
+            }
         }
 
         Ok(())

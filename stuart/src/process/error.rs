@@ -6,9 +6,12 @@ pub enum ProcessError {
     MissingMarkdownRoot,
     StackError,
     EndWithoutBegin,
+    NotJsonArray,
+    UnexpectedEndOfFile,
     UndefinedVariable(String),
     UndefinedSection(String),
     NullError(String),
+    NotFound(String),
 
     InvalidDataType {
         variable: String,

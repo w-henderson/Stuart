@@ -1,5 +1,6 @@
 use humphrey_json::Value;
 
+#[derive(Debug)]
 pub struct StackFrame {
     pub name: String,
     pub variables: Vec<(String, Value)>,
