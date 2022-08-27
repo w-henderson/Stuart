@@ -18,13 +18,20 @@ pub struct ForFunction {
     source_type: ForFunctionSourceType,
     limit: Option<u16>,
     sort_variable: Option<String>,
+    sort_order: SortOrder,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum ForFunctionSourceType {
     MarkdownDirectory,
     JSONFile,
     JSONObject,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum SortOrder {
+    Asc,
+    Desc,
 }
 
 impl FunctionParser for ForParser {
@@ -59,6 +66,7 @@ impl FunctionParser for ForParser {
 
         let mut limit = None;
         let mut sort_variable = None;
+        let mut sort_order = SortOrder::Asc;
 
         for (name, arg) in &raw.named_args {
             match name.as_str() {
@@ -79,6 +87,13 @@ impl FunctionParser for ForParser {
 
                     sort_variable = Some(arg.as_variable().unwrap().to_string());
                 }
+                "order" => {
+                    sort_order = match arg.as_string() {
+                        Some("asc") => SortOrder::Asc,
+                        Some("desc") => SortOrder::Desc,
+                        _ => return Err(ParseError::InvalidArgument),
+                    };
+                }
                 _ => return Err(ParseError::InvalidArgument),
             }
         }
@@ -89,6 +104,7 @@ impl FunctionParser for ForParser {
             source_type,
             limit,
             sort_variable,
+            sort_order,
         }))
     }
 }
@@ -101,7 +117,7 @@ impl Function for ForFunction {
     fn execute(&self, scope: &mut Scope) -> Result<(), ProcessError> {
         let waypoint = scope.tokens.waypoint();
 
-        let variable_iter: Box<dyn Iterator<Item = Value>> = match self.source_type {
+        let mut variables: Vec<Value> = match self.source_type {
             ForFunctionSourceType::MarkdownDirectory => {
                 let directory = scope
                     .processor
@@ -113,12 +129,15 @@ impl Function for ForFunction {
                     return Err(ProcessError::NotFound(self.source.clone()));
                 }
 
-                Box::new(directory.children().unwrap().iter().filter_map(|n| {
-                    match n.parsed_contents() {
+                directory
+                    .children()
+                    .unwrap()
+                    .iter()
+                    .filter_map(|n| match n.parsed_contents() {
                         ParsedContents::Markdown(md) => Some(md.to_value()),
                         _ => None,
-                    }
-                }))
+                    })
+                    .collect()
             }
             ForFunctionSourceType::JSONFile => {
                 let file = scope
@@ -131,13 +150,12 @@ impl Function for ForFunction {
                     return Err(ProcessError::NotFound(self.source.clone()));
                 }
 
-                Box::new(
-                    match file.parsed_contents() {
-                        ParsedContents::Json(json) => json.as_array().map(|a| a.iter().cloned()),
-                        _ => None,
-                    }
-                    .ok_or(ProcessError::NotJsonArray)?,
-                )
+                match file.parsed_contents() {
+                    ParsedContents::Json(json) => json.as_array().map(|a| a.iter().cloned()),
+                    _ => None,
+                }
+                .ok_or(ProcessError::NotJsonArray)?
+                .collect()
             }
             ForFunctionSourceType::JSONObject => {
                 let mut variable_iter = self.source.split('.');
@@ -158,13 +176,29 @@ impl Function for ForFunction {
 
                 // Clippy thinks `a.to_vec().into_iter()` is unnecessary, but it's not since we need to consume the
                 //   iterator over the local variable and return an owned version.
-                #[allow(clippy::unnecessary_to_owned)]
-                Box::new(
-                    variable
-                        .and_then(|v| v.as_array().map(|a| a.to_vec().into_iter()))
-                        .ok_or(ProcessError::NotJsonArray)?,
-                )
+                //#[allow(clippy::unnecessary_to_owned)]
+                variable
+                    .and_then(|v| v.as_array().map(|a| a.to_vec()))
+                    .ok_or(ProcessError::NotJsonArray)?
             }
+        };
+
+        if let Some(key) = &self.sort_variable {
+            let indexes = key.split('.').skip(1).collect::<Vec<_>>();
+
+            variables.sort_by_cached_key(|v| {
+                crate::process::stack::get_value(&indexes, v)
+                    .as_str()
+                    .unwrap_or("")
+                    .to_string()
+            });
+        }
+
+        let variable_iter: Box<dyn Iterator<Item = Value>> = match (self.limit, self.sort_order) {
+            (None, SortOrder::Asc) => Box::new(variables.into_iter()),
+            (None, SortOrder::Desc) => Box::new(variables.into_iter().rev()),
+            (Some(l), SortOrder::Asc) => Box::new(variables.into_iter().take(l as usize)),
+            (Some(l), SortOrder::Desc) => Box::new(variables.into_iter().rev().take(l as usize)),
         };
 
         for variable in variable_iter {
