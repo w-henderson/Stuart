@@ -143,7 +143,26 @@ impl Node {
             })?;
         }
 
-        for token in &root {
+        if !scope
+            .stack
+            .pop()
+            .map(|frame| frame.name == "base")
+            .unwrap_or(false)
+        {
+            return Err(TracebackError {
+                path: self.source().to_path_buf(),
+                line: 0,
+                column: 0,
+                kind: ProcessError::StackError,
+            });
+        }
+
+        let mut token_iter = TokenIter::new(&root);
+
+        scope.stack.push(StackFrame::new("base2"));
+        scope.tokens = &mut token_iter;
+
+        while let Some(token) = scope.tokens.next() {
             token.process(&mut scope).map_err(|kind| TracebackError {
                 path: self.source().to_path_buf(),
                 line: 0,
