@@ -240,7 +240,7 @@ impl Token {
                         .output
                         .extend_from_slice(s.as_bytes());
                 } else {
-                    return Err(ProcessError::UndefinedVariable(variable_name.to_string()));
+                    return Err(ProcessError::UndefinedVariable(variable.to_string()));
                 }
             }
         }

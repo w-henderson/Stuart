@@ -3,6 +3,8 @@ use crate::parse::{ParseError, RawFunction};
 use crate::process::{ProcessError, Scope};
 use crate::quiet_assert;
 
+static WORDS_PER_MINUTE: usize = 200;
+
 pub struct TimeToReadParser;
 
 #[derive(Debug, Clone)]
@@ -35,6 +37,21 @@ impl Function for TimeToReadFunction {
     }
 
     fn execute(&self, scope: &mut Scope) -> Result<(), ProcessError> {
-        todo!()
+        let variable = scope
+            .get_variable(&self.variable_name)
+            .ok_or_else(|| ProcessError::UndefinedVariable(self.variable_name.clone()))?;
+
+        let string = variable.as_str().ok_or(ProcessError::InvalidDataType {
+            variable: self.variable_name.clone(),
+            expected: "string".to_string(),
+            found: String::new(),
+        })?;
+
+        let words = string.split_whitespace().count();
+        let minutes = words / WORDS_PER_MINUTE;
+
+        scope.output(minutes.to_string())?;
+
+        Ok(())
     }
 }

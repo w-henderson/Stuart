@@ -8,7 +8,7 @@ pub struct ExcerptParser;
 #[derive(Debug, Clone)]
 pub struct ExcerptFunction {
     variable_name: String,
-    length: u16,
+    length: usize,
 }
 
 impl FunctionParser for ExcerptParser {
@@ -24,7 +24,7 @@ impl FunctionParser for ExcerptParser {
             .as_variable()
             .ok_or(ParseError::InvalidArgument)?;
 
-        let length: u16 = raw.positional_args[1]
+        let length: usize = raw.positional_args[1]
             .as_integer()
             .ok_or(ParseError::InvalidArgument)?
             .try_into()
@@ -43,6 +43,36 @@ impl Function for ExcerptFunction {
     }
 
     fn execute(&self, scope: &mut Scope) -> Result<(), ProcessError> {
-        todo!()
+        let variable = scope
+            .get_variable(&self.variable_name)
+            .ok_or_else(|| ProcessError::UndefinedVariable(self.variable_name.clone()))?;
+
+        let string = variable.as_str().ok_or(ProcessError::InvalidDataType {
+            variable: self.variable_name.clone(),
+            expected: "string".to_string(),
+            found: String::new(),
+        })?;
+
+        let mut chars = string.chars();
+        let mut excerpt = String::with_capacity(self.length);
+        let mut tag = false;
+
+        while excerpt.len() < self.length {
+            if let Some(ch) = chars.next() {
+                if ch == '<' {
+                    tag = true;
+                } else if ch == '>' {
+                    tag = false;
+                } else if !tag {
+                    excerpt.push(ch);
+                }
+            } else {
+                break;
+            }
+        }
+
+        scope.output(excerpt)?;
+
+        Ok(())
     }
 }

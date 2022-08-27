@@ -71,6 +71,20 @@ impl Function for EndFunction {
                     .output
                     .extend_from_slice(&frame.output);
             }
+            (false, "ifdefined") => {
+                let frame = scope.stack.pop().ok_or(ProcessError::EndWithoutBegin)?;
+
+                if !frame.name.starts_with("ifdefined:") {
+                    return Err(ProcessError::EndWithoutBegin);
+                }
+
+                scope
+                    .stack
+                    .last_mut()
+                    .ok_or(ProcessError::StackError)?
+                    .output
+                    .extend_from_slice(&frame.output);
+            }
             _ => {
                 return Err(ProcessError::EndWithoutBegin);
             }

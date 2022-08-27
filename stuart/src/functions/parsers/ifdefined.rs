@@ -1,7 +1,10 @@
 use crate::functions::{Function, FunctionParser};
 use crate::parse::{ParseError, RawFunction};
+use crate::process::stack::StackFrame;
 use crate::process::{ProcessError, Scope};
 use crate::quiet_assert;
+
+use humphrey_json::Value;
 
 pub struct IfDefinedParser;
 
@@ -35,6 +38,33 @@ impl Function for IfDefinedFunction {
     }
 
     fn execute(&self, scope: &mut Scope) -> Result<(), ProcessError> {
-        todo!()
+        let defined = scope
+            .get_variable(&self.variable_name)
+            .map(|v| !matches!(v, Value::Null))
+            .unwrap_or(false);
+
+        let frame = StackFrame::new(format!("ifdefined:{}", self.variable_name));
+
+        let stack_height = scope.stack.len();
+        scope.stack.push(frame);
+
+        while scope.stack.len() > stack_height {
+            let token = scope
+                .tokens
+                .next()
+                .ok_or(ProcessError::UnexpectedEndOfFile)?;
+
+            if defined
+                || (token
+                    .as_function()
+                    .map(|f| f.name() == "end")
+                    .unwrap_or(false)
+                    && scope.stack.len() == stack_height + 1)
+            {
+                token.process(scope)?;
+            }
+        }
+
+        Ok(())
     }
 }
