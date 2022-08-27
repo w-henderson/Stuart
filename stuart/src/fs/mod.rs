@@ -1,9 +1,13 @@
+mod output;
+
+pub use output::OutputNode;
+
 use crate::parse::{parse, parse_markdown, ParseError, ParsedMarkdown, Token, TracebackError};
 
 use humphrey_json::Value;
 
 use std::fmt::Debug;
-use std::fs::{create_dir, read, read_dir, remove_dir_all, write};
+use std::fs::{read, read_dir};
 use std::path::{Component, Path, PathBuf};
 
 #[derive(Clone)]
@@ -74,13 +78,6 @@ impl Node {
         }
     }
 
-    pub fn children_mut(&mut self) -> Option<&mut [Node]> {
-        match self {
-            Node::Directory { children, .. } => Some(children),
-            Node::File { .. } => None,
-        }
-    }
-
     pub fn contents(&self) -> Option<&[u8]> {
         match self {
             Node::File { contents, .. } => Some(contents),
@@ -123,50 +120,6 @@ impl Node {
         }
 
         working_path.last().copied()
-    }
-
-    pub fn save(&self, path: impl AsRef<Path>) -> Result<(), Error> {
-        let path = path.as_ref().to_path_buf();
-
-        if path.exists() && path.is_dir() {
-            remove_dir_all(&path).map_err(|_| Error::Write)?;
-        }
-
-        match self {
-            Self::Directory { children, .. } => {
-                create_dir(&path).map_err(|_| Error::Write)?;
-
-                for child in children {
-                    child.save_recur(&path)?;
-                }
-            }
-            _ => panic!("`Node::save` should only be used on the root directory"),
-        }
-
-        Ok(())
-    }
-
-    fn save_recur(&self, path: impl AsRef<Path>) -> Result<(), Error> {
-        let path = path.as_ref().to_path_buf();
-
-        match self {
-            Self::Directory { name, children, .. } => {
-                let dir = path.join(name);
-
-                create_dir(&dir).map_err(|_| Error::Write)?;
-
-                for child in children {
-                    child.save_recur(&dir)?;
-                }
-            }
-            Self::File { name, contents, .. } => {
-                if name != "root.html" && name != "md.html" {
-                    write(path.join(name), contents).map_err(|_| Error::Write)?;
-                }
-            }
-        }
-
-        Ok(())
     }
 
     fn create_from_dir(dir: impl AsRef<Path>) -> Result<Self, Error> {

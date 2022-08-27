@@ -1,3 +1,4 @@
+pub mod config;
 pub mod fs;
 pub mod parse;
 pub mod process;
@@ -5,7 +6,8 @@ pub mod process;
 #[macro_use]
 pub mod functions;
 
-use crate::fs::Node;
+use crate::config::Config;
+use crate::fs::{Node, OutputNode, ParsedContents};
 use crate::parse::Token;
 use crate::process::error::ProcessError;
 
@@ -27,12 +29,13 @@ define_functions![
 pub struct Stuart {
     fs: Node,
     stack: Vec<usize>,
+    config: Config,
 }
 
-#[derive(Debug)]
-pub struct SpecialFiles {
-    pub root: Option<Vec<Token>>,
-    pub md: Option<Vec<Token>>,
+#[derive(Clone, Copy, Debug)]
+pub struct SpecialFiles<'a> {
+    pub root: Option<&'a [Token]>,
+    pub md: Option<&'a [Token]>,
 }
 
 #[derive(Clone, Debug)]
@@ -44,126 +47,88 @@ pub struct TracebackError<T: Clone + Debug> {
 }
 
 impl Stuart {
-    pub fn new(fs: Node) -> Self {
+    pub fn new(fs: Node, config: Config) -> Self {
         Self {
             fs,
             stack: Vec::new(),
+            config,
         }
     }
 
-    pub fn build(&mut self) -> Result<(), TracebackError<ProcessError>> {
-        loop {
-            while self.stack_target().map(|n| n.is_dir()).unwrap_or(false) {
-                self.stack.push(0);
-            }
-
-            let (new_body, new_name) = match self.stack_target() {
-                Some(n) if n.is_file() => {
-                    if n.name() != "root.html" && n.name() != "md.html" {
-                        let special_files = self.nearest_special_files();
-                        n.process(self, special_files.unwrap())?
-                    } else {
-                        (None, None)
-                    }
-                }
-                None => {
-                    self.stack.pop();
-
-                    if self.stack.is_empty() {
-                        break;
-                    }
-
-                    (None, None)
-                }
-                _ => unreachable!(),
-            };
-
-            if let Some(new_body) = new_body {
-                match &mut *self.stack_target_mut().unwrap() {
-                    Node::File {
-                        ref mut contents, ..
-                    } => *contents = new_body,
-                    Node::Directory { .. } => panic!("Cannot update body of directory"),
-                }
-            }
-
-            if let Some(new_name) = new_name {
-                match &mut *self.stack_target_mut().unwrap() {
-                    Node::File { ref mut name, .. } => *name = new_name,
-                    Node::Directory { .. } => panic!("Cannot update name of directory"),
-                }
-            }
-
-            let index = self.stack.pop().unwrap();
-            self.stack.push(index + 1);
+    pub fn build(&mut self, path: impl AsRef<Path>) -> Result<(), TracebackError<ProcessError>> {
+        let specials = SpecialFiles {
+            md: None,
+            root: None,
         }
+        .update_from_children(self.fs.children().unwrap());
+
+        let root = self.build_node(&self.fs, specials)?;
+
+        root.save(&path, &self.config).map_err(|e| TracebackError {
+            path: path.as_ref().to_path_buf(),
+            line: 0,
+            column: 0,
+            kind: ProcessError::Save(e),
+        })?;
 
         Ok(())
     }
 
-    pub fn save(&self, path: impl AsRef<Path>) -> Result<(), fs::Error> {
-        self.fs.save(path)
-    }
+    fn build_node(
+        &self,
+        node: &Node,
+        specials: SpecialFiles,
+    ) -> Result<OutputNode, TracebackError<ProcessError>> {
+        match node {
+            Node::Directory { name, children, .. } => {
+                let specials = specials.update_from_children(children);
+                let children = children
+                    .iter()
+                    .map(|n| self.build_node(n, specials))
+                    .collect::<Result<Vec<_>, TracebackError<ProcessError>>>()?;
 
-    fn stack_target(&self) -> Option<&Node> {
-        let mut n = &self.fs;
+                Ok(OutputNode::Directory {
+                    name: name.clone(),
+                    children,
+                })
+            }
+            Node::File { name, contents, .. } => {
+                if name != "root.html" && name != "md.html" {
+                    let (new_contents, new_name) = node.process(self, specials)?;
 
-        for child in &self.stack {
-            n = n.children()?.get(*child)?;
-        }
-
-        Some(n)
-    }
-
-    fn stack_target_mut(&mut self) -> Option<&mut Node> {
-        let mut n = &mut self.fs;
-
-        for child in &mut self.stack {
-            n = n.children_mut()?.get_mut(*child)?;
-        }
-
-        Some(n)
-    }
-
-    fn nearest_special_files(&self) -> Option<SpecialFiles> {
-        let mut stack = Vec::with_capacity(self.stack.len());
-        let mut n = &self.fs;
-
-        for child in &self.stack {
-            stack.push(n);
-            n = n.children()?.get(*child)?;
-        }
-
-        let mut root = None;
-        let mut md = None;
-
-        for dir in stack.into_iter().rev() {
-            if root.is_none() {
-                if let Some(child) = dir.children()?.iter().find(|c| c.name() == "root.html") {
-                    root = Some(child);
+                    Ok(OutputNode::File {
+                        name: new_name.unwrap_or_else(|| name.clone()),
+                        contents: new_contents.unwrap_or_else(|| contents.clone()),
+                    })
+                } else {
+                    Ok(OutputNode::File {
+                        name: name.clone(),
+                        contents: contents.clone(),
+                    })
                 }
             }
+        }
+    }
+}
 
-            if md.is_none() {
-                if let Some(child) = dir.children()?.iter().find(|c| c.name() == "md.html") {
-                    md = Some(child);
-                }
-            }
+impl<'a> SpecialFiles<'a> {
+    fn update_from_children(&self, children: &'a [Node]) -> SpecialFiles {
+        let mut specials = *self;
 
-            if root.is_some() && md.is_some() {
-                break;
+        for child in children {
+            if child.name() == "root.html" {
+                specials.root = match child.parsed_contents() {
+                    ParsedContents::Html(tokens) => Some(tokens),
+                    _ => None,
+                };
+            } else if child.name() == "md.html" {
+                specials.md = match child.parsed_contents() {
+                    ParsedContents::Html(tokens) => Some(tokens),
+                    _ => None,
+                };
             }
         }
 
-        Some(SpecialFiles {
-            root: root
-                .map(|n| n.parsed_contents())
-                .and_then(|c| c.tokens())
-                .map(|t| t.to_vec()),
-            md: md
-                .map(|n| n.parsed_contents())
-                .and_then(|c| c.tokens())
-                .map(|t| t.to_vec()),
-        })
+        specials
     }
 }

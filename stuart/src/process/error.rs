@@ -1,3 +1,5 @@
+use crate::fs;
+
 pub use crate::TracebackError;
 
 #[derive(Clone, Debug)]
@@ -9,6 +11,7 @@ pub enum ProcessError {
     NotJsonArray,
     InvalidDate,
     UnexpectedEndOfFile,
+    Save(fs::Error),
     UndefinedVariable(String),
     UndefinedSection(String),
     NullError(String),
