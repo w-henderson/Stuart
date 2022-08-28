@@ -133,4 +133,8 @@ impl<'a> Parser<'a> {
     pub fn location(&self) -> (u32, u32) {
         (self.line, self.column)
     }
+
+    pub fn path(&self) -> &Path {
+        self.path
+    }
 }

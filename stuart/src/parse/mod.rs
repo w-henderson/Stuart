@@ -138,6 +138,7 @@ fn parse_variable(parser: &mut Parser) -> Result<Token, TracebackError<ParseErro
 }
 
 fn parse_function(parser: &mut Parser) -> Result<Token, TracebackError<ParseError>> {
+    let (line, column) = parser.location();
     let function_name = parser.extract_while(|c| c.is_alphanumeric() || c == '_');
 
     if function_name.is_empty() {
@@ -224,5 +225,10 @@ fn parse_function(parser: &mut Parser) -> Result<Token, TracebackError<ParseErro
         }
     }
 
-    Err(parser.traceback(ParseError::NonexistentFunction(function_name.to_string())))
+    Err(TracebackError {
+        path: parser.path().to_path_buf(),
+        line,
+        column,
+        kind: ParseError::NonexistentFunction(function_name),
+    })
 }

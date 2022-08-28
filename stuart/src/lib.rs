@@ -28,6 +28,7 @@ define_functions![
     functions::parsers::Excerpt,
     functions::parsers::For,
     functions::parsers::IfDefined,
+    functions::parsers::Import,
     functions::parsers::Insert,
     functions::parsers::TimeToRead,
 ];

@@ -238,6 +238,9 @@ impl StuartError for ProcessError {
             ProcessError::UnexpectedEndOfFile => "unexpected end of file".display(buf),
             ProcessError::NotBuilt => "not built".display(buf),
             ProcessError::Fs(e) => e.display(buf),
+            ProcessError::VariableAlreadyExists(name) => {
+                format!("variable already exists: `{}`", name).display(buf)
+            }
             ProcessError::UndefinedVariable(name) => {
                 format!("undefined variable: `{}`", name).display(buf)
             }
@@ -286,6 +289,9 @@ impl StuartError for ProcessError {
             ProcessError::UnexpectedEndOfFile => None,
             ProcessError::NotBuilt => None,
             ProcessError::Fs(e) => e.help(),
+            ProcessError::VariableAlreadyExists(_) => {
+                Some("variables in Stuart are immutable (for the time being)".to_string())
+            }
             ProcessError::UndefinedVariable(_) => None,
             ProcessError::UndefinedSection(_) => None,
             ProcessError::NullError(_) => Some(

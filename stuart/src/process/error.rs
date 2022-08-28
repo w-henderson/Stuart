@@ -13,6 +13,7 @@ pub enum ProcessError {
     UnexpectedEndOfFile,
     NotBuilt,
     Fs(fs::Error),
+    VariableAlreadyExists(String),
     UndefinedVariable(String),
     UndefinedSection(String),
     NullError(String),
