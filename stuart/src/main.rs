@@ -1,5 +1,5 @@
 use clap::{App, Arg, ArgMatches, Command};
-use stuart::{Config, Node, Stuart, StuartError};
+use stuart::{Config, Node, Stuart, StuartError, TracebackError};
 
 use std::{fs::read_to_string, path::PathBuf};
 
@@ -56,8 +56,20 @@ fn build(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
     let manifest =
         read_to_string(&path).map_err(|e| format!("failed to read manifest:\n  {}", e))?;
 
-    let config =
-        Config::load(&manifest).map_err(|e| format!("failed to parse manifest:\n  {}", e))?;
+    let config = match Config::load(&manifest) {
+        Ok(config) => config,
+        Err(e) => match e.line_col() {
+            Some((line, col)) => {
+                return Err(Box::new(TracebackError {
+                    path,
+                    line: line as u32 + 1,
+                    column: col as u32 + 1,
+                    kind: e.to_string(),
+                }))
+            }
+            _ => return Err(Box::new(format!("failed to parse manifest:\n  {}", e))),
+        },
+    };
 
     let fs = Node::new(path.parent().unwrap().join("content"))?;
 

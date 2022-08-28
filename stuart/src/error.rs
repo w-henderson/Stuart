@@ -34,10 +34,10 @@ pub trait StuartError {
 
 #[derive(Clone, Debug)]
 pub struct TracebackError<T: Clone + Debug> {
-    pub(crate) path: PathBuf,
-    pub(crate) line: u32,
-    pub(crate) column: u32,
-    pub(crate) kind: T,
+    pub path: PathBuf,
+    pub line: u32,
+    pub column: u32,
+    pub kind: T,
 }
 
 impl<T: Clone + Debug + StuartError> StuartError for TracebackError<T> {
