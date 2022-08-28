@@ -1,7 +1,8 @@
 use clap::{App, Arg, ArgMatches, Command};
-use stuart::{Config, Node, OutputNode, Scripts, Stuart, StuartError, TracebackError};
+use stuart::{fs, Config, Node, OutputNode, Scripts, Stuart, StuartError, TracebackError};
 
-use std::fs::{read_to_string, remove_dir_all};
+use std::fs::{create_dir, read_to_string, remove_dir_all, write};
+use std::io::Write;
 use std::path::PathBuf;
 
 fn main() {
@@ -28,7 +29,12 @@ fn main() {
         .subcommand(
             Command::new("new")
                 .about("Creates a new site")
-                .arg(Arg::new("name").help("Name of the site").required(true)),
+                .arg(Arg::new("name").help("Name of the site").required(true))
+                .arg(
+                    Arg::new("no-git")
+                        .long("no-git")
+                        .help("Don't initialize a Git repository"),
+                ),
         )
         .subcommand_required(true)
         .get_matches();
@@ -77,18 +83,21 @@ fn build(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
     scripts.execute_pre_build()?;
 
     let fs = Node::new(path.parent().unwrap().join("content"))?;
-
     let mut stuart = Stuart::new(fs, config);
     stuart.build()?;
 
     for dir in ["static", "temp"] {
-        let node = OutputNode::new(path.parent().unwrap().join(dir))?;
-        stuart.merge_output(node)?;
+        let dir_path = path.parent().unwrap().join(dir);
+
+        if dir_path.exists() {
+            let node = OutputNode::new(path.parent().unwrap().join(dir))?;
+            stuart.merge_output(node)?;
+        }
     }
 
     remove_dir_all(path.parent().unwrap().join("temp")).ok();
 
-    stuart.save(path.parent().unwrap().join("dist"))?;
+    stuart.save(path.parent().unwrap().join(output))?;
 
     scripts.execute_post_build()?;
 
@@ -96,5 +105,44 @@ fn build(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
 }
 
 fn new(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
+    let name = args.value_of("name").unwrap();
+    let path = PathBuf::try_from(name).map_err(|_| fs::Error::Write)?;
+    let no_git = args.is_present("no-git");
+
+    let mut manifest: Vec<u8> = format!("[site]\nname = \"{}\"", name).as_bytes().to_vec();
+
+    if let Some((name, email)) = stuart::config::git::get_user_name()
+        .and_then(|name| stuart::config::git::get_user_email().map(|email| (name, email)))
+    {
+        write!(&mut manifest, "\nauthor = \"{} <{}>\"", name, email).unwrap();
+    }
+
+    manifest.push(b'\n');
+
+    create_dir(&path).map_err(|_| fs::Error::Write)?;
+    create_dir(path.join("content")).map_err(|_| fs::Error::Write)?;
+    create_dir(path.join("static")).map_err(|_| fs::Error::Write)?;
+
+    write(path.join("stuart.toml"), manifest).map_err(|_| fs::Error::Write)?;
+    write(
+        path.join("content/index.html"),
+        include_bytes!("../default_project/index.html"),
+    )
+    .map_err(|_| fs::Error::Write)?;
+    write(
+        path.join("content/root.html"),
+        include_bytes!("../default_project/root.html"),
+    )
+    .map_err(|_| fs::Error::Write)?;
+    write(
+        path.join("static/ferris.svg"),
+        include_bytes!("../default_project/ferris.svg"),
+    )
+    .map_err(|_| fs::Error::Write)?;
+
+    if !no_git {
+        stuart::config::git::init_repository(&format!("./{}", name));
+    }
+
     Ok(())
 }

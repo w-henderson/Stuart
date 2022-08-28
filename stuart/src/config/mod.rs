@@ -1,3 +1,5 @@
+pub mod git;
+
 use serde_derive::Deserialize;
 
 #[derive(Debug)]
@@ -11,7 +13,7 @@ pub struct Config {
 #[derive(Deserialize)]
 struct RawConfig {
     site: Site,
-    settings: Settings,
+    settings: Option<Settings>,
 }
 
 #[derive(Deserialize)]
@@ -42,11 +44,13 @@ impl From<RawConfig> for Config {
             author: raw.site.author,
             strip_extensions: raw
                 .settings
-                .strip_extensions
+                .as_ref()
+                .and_then(|settings| settings.strip_extensions)
                 .unwrap_or(default.strip_extensions),
             save_data_files: raw
                 .settings
-                .save_data_files
+                .as_ref()
+                .and_then(|settings| settings.save_data_files)
                 .unwrap_or(default.save_data_files),
         }
     }
