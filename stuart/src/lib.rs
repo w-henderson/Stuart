@@ -11,10 +11,10 @@ pub mod functions;
 
 pub use config::Config;
 pub use error::*;
-pub use fs::Node;
+pub use fs::{Node, OutputNode};
 pub use scripts::Scripts;
 
-use crate::fs::{OutputNode, ParsedContents};
+use crate::fs::ParsedContents;
 use crate::parse::LocatableToken;
 use crate::process::error::ProcessError;
 
@@ -35,7 +35,7 @@ define_functions![
 #[derive(Debug)]
 pub struct Stuart {
     fs: Node,
-    stack: Vec<usize>,
+    out: Option<OutputNode>,
     config: Config,
 }
 
@@ -49,28 +49,37 @@ impl Stuart {
     pub fn new(fs: Node, config: Config) -> Self {
         Self {
             fs,
-            stack: Vec::new(),
+            out: None,
             config,
         }
     }
 
-    pub fn build(&mut self, path: impl AsRef<Path>) -> Result<(), TracebackError<ProcessError>> {
+    pub fn build(&mut self) -> Result<(), TracebackError<ProcessError>> {
         let specials = SpecialFiles {
             md: None,
             root: None,
         }
         .update_from_children(self.fs.children().unwrap());
 
-        let root = self.build_node(&self.fs, specials)?;
-
-        root.save(&path, &self.config).map_err(|e| TracebackError {
-            path: path.as_ref().to_path_buf(),
-            line: 0,
-            column: 0,
-            kind: ProcessError::Save(e),
-        })?;
+        self.out = Some(self.build_node(&self.fs, specials)?);
 
         Ok(())
+    }
+
+    pub fn merge_output(&mut self, node: OutputNode) -> Result<(), ProcessError> {
+        if let Some(out) = &mut self.out {
+            out.merge(node).map_err(ProcessError::Fs)
+        } else {
+            Err(ProcessError::NotBuilt)
+        }
+    }
+
+    pub fn save(&mut self, path: impl AsRef<Path>) -> Result<(), ProcessError> {
+        if let Some(out) = &self.out {
+            out.save(&path, &self.config).map_err(ProcessError::Fs)
+        } else {
+            Err(ProcessError::NotBuilt)
+        }
     }
 
     fn build_node(
@@ -79,7 +88,11 @@ impl Stuart {
         specials: SpecialFiles,
     ) -> Result<OutputNode, TracebackError<ProcessError>> {
         match node {
-            Node::Directory { name, children, .. } => {
+            Node::Directory {
+                name,
+                children,
+                source,
+            } => {
                 let specials = specials.update_from_children(children);
                 let children = children
                     .iter()
@@ -89,20 +102,28 @@ impl Stuart {
                 Ok(OutputNode::Directory {
                     name: name.clone(),
                     children,
+                    source: source.clone(),
                 })
             }
-            Node::File { name, contents, .. } => {
+            Node::File {
+                name,
+                contents,
+                source,
+                ..
+            } => {
                 if name != "root.html" && name != "md.html" {
                     let (new_contents, new_name) = node.process(self, specials)?;
 
                     Ok(OutputNode::File {
                         name: new_name.unwrap_or_else(|| name.clone()),
                         contents: new_contents.unwrap_or_else(|| contents.clone()),
+                        source: source.clone(),
                     })
                 } else {
                     Ok(OutputNode::File {
                         name: name.clone(),
                         contents: contents.clone(),
+                        source: source.clone(),
                     })
                 }
             }

@@ -134,6 +134,24 @@ impl StuartError for fs::Error {
             fs::Error::Read => "could not read from filesystem".display(buf),
             fs::Error::Write => "could not write to filesystem".display(buf),
             fs::Error::Parse(e) => e.display(buf),
+            fs::Error::Conflict(a, b) => {
+                let (rel_a, rel_b) = if let Ok(dir) = current_dir().and_then(std::fs::canonicalize)
+                {
+                    (
+                        a.strip_prefix(&dir).unwrap_or(a),
+                        b.strip_prefix(&dir).unwrap_or(b),
+                    )
+                } else {
+                    (a.as_path(), b.as_path())
+                };
+
+                format!(
+                    "filename conflict between `{}` and `{}`",
+                    rel_b.display(),
+                    rel_a.display()
+                )
+                .display(buf)
+            }
         }
     }
 
@@ -150,7 +168,8 @@ impl StuartError for fs::Error {
                 "are any other processes using the file or directory, such as the terminal?"
                     .to_string(),
             ),
-            fs::Error::Parse(e) => None,
+            fs::Error::Parse(_) => None,
+            fs::Error::Conflict(_, _) => None,
         }
     }
 }
@@ -217,7 +236,8 @@ impl StuartError for ProcessError {
             ProcessError::NotJsonArray => "not a json array".display(buf),
             ProcessError::InvalidDate => "invalid date".display(buf),
             ProcessError::UnexpectedEndOfFile => "unexpected end of file".display(buf),
-            ProcessError::Save(e) => e.display(buf),
+            ProcessError::NotBuilt => "not built".display(buf),
+            ProcessError::Fs(e) => e.display(buf),
             ProcessError::UndefinedVariable(name) => {
                 format!("undefined variable: `{}`", name).display(buf)
             }
@@ -264,7 +284,8 @@ impl StuartError for ProcessError {
                 Some("ensure the date is valid and the format is correct".to_string())
             }
             ProcessError::UnexpectedEndOfFile => None,
-            ProcessError::Save(e) => e.help(),
+            ProcessError::NotBuilt => None,
+            ProcessError::Fs(e) => e.help(),
             ProcessError::UndefinedVariable(_) => None,
             ProcessError::UndefinedSection(_) => None,
             ProcessError::NullError(_) => Some(

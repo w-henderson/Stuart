@@ -33,6 +33,7 @@ pub enum Error {
     Read,
     Write,
     Parse(TracebackError<ParseError>),
+    Conflict(PathBuf, PathBuf),
 }
 
 #[derive(Clone, Debug)]

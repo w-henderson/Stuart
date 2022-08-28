@@ -1,7 +1,8 @@
 use clap::{App, Arg, ArgMatches, Command};
-use stuart::{Config, Node, Scripts, Stuart, StuartError, TracebackError};
+use stuart::{Config, Node, OutputNode, Scripts, Stuart, StuartError, TracebackError};
 
-use std::{fs::read_to_string, path::PathBuf};
+use std::fs::{read_to_string, remove_dir_all};
+use std::path::PathBuf;
 
 fn main() {
     let matches = App::new("Stuart")
@@ -78,7 +79,16 @@ fn build(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
     let fs = Node::new(path.parent().unwrap().join("content"))?;
 
     let mut stuart = Stuart::new(fs, config);
-    stuart.build(output)?;
+    stuart.build()?;
+
+    for dir in ["static", "temp"] {
+        let node = OutputNode::new(path.parent().unwrap().join(dir))?;
+        stuart.merge_output(node)?;
+    }
+
+    remove_dir_all(path.parent().unwrap().join("temp")).ok();
+
+    stuart.save(path.parent().unwrap().join("dist"))?;
 
     scripts.execute_post_build()?;
 
