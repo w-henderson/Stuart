@@ -27,8 +27,7 @@ pub enum Node {
 
 #[derive(Clone, Debug)]
 pub enum Error {
-    Path,
-    NotFound,
+    NotFound(String),
     Read,
     Write,
     Parse(TracebackError<ParseError>),
@@ -48,12 +47,9 @@ impl Node {
             .as_ref()
             .to_path_buf()
             .canonicalize()
-            .map_err(|_| Error::NotFound)?;
+            .map_err(|_| Error::NotFound(root.as_ref().to_string_lossy().to_string()))?;
 
-        let content_path = root.join("content");
-        let content_dir = Self::create_from_dir(&content_path)?;
-
-        Ok(content_dir)
+        Self::create_from_dir(root)
     }
 
     pub fn is_dir(&self) -> bool {
@@ -124,7 +120,8 @@ impl Node {
 
     fn create_from_dir(dir: impl AsRef<Path>) -> Result<Self, Error> {
         let dir = dir.as_ref();
-        let content = read_dir(&dir).map_err(|_| Error::NotFound)?;
+        let content =
+            read_dir(&dir).map_err(|_| Error::NotFound(dir.to_string_lossy().to_string()))?;
         let mut children = Vec::new();
 
         for path in content.flatten() {

@@ -25,7 +25,7 @@ impl RawArgument {
                 .chars()
                 .all(|c| c.is_alphanumeric() || c == '_' || c == '.')
             {
-                return Err(ParseError::InvalidVariableName);
+                return Err(ParseError::InvalidVariableName(variable_name.to_string()));
             }
 
             Ok(Self::Variable(variable_name.to_string()))

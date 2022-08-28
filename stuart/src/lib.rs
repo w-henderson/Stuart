@@ -3,16 +3,21 @@ pub mod fs;
 pub mod parse;
 pub mod process;
 
+mod error;
+
 #[macro_use]
 pub mod functions;
 
-use crate::config::Config;
-use crate::fs::{Node, OutputNode, ParsedContents};
+pub use config::Config;
+pub use error::*;
+pub use fs::Node;
+
+use crate::fs::{OutputNode, ParsedContents};
 use crate::parse::Token;
 use crate::process::error::ProcessError;
 
 use std::fmt::Debug;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 define_functions![
     functions::parsers::Begin,
@@ -36,14 +41,6 @@ pub struct Stuart {
 pub struct SpecialFiles<'a> {
     pub root: Option<&'a [Token]>,
     pub md: Option<&'a [Token]>,
-}
-
-#[derive(Clone, Debug)]
-pub struct TracebackError<T: Clone + Debug> {
-    pub(crate) path: PathBuf,
-    pub(crate) line: u32,
-    pub(crate) column: u32,
-    pub(crate) kind: T,
 }
 
 impl Stuart {

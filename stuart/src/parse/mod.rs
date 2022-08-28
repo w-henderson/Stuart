@@ -81,7 +81,7 @@ fn parse_variable(parser: &mut Parser) -> Result<Token, TracebackError<ParseErro
     let variable_name = parser.extract_while(|c| c.is_alphanumeric() || c == '_' || c == '.');
 
     if variable_name.is_empty() {
-        return Err(parser.traceback(ParseError::InvalidVariableName));
+        return Err(parser.traceback(ParseError::InvalidVariableName("<empty>".to_string())));
     }
 
     Ok(Token::Variable(variable_name))
@@ -91,7 +91,7 @@ fn parse_function(parser: &mut Parser) -> Result<Token, TracebackError<ParseErro
     let function_name = parser.extract_while(|c| c.is_alphanumeric() || c == '_');
 
     if function_name.is_empty() {
-        return Err(parser.traceback(ParseError::InvalidFunctionName));
+        return Err(parser.traceback(ParseError::InvalidFunctionName("<empty>".to_string())));
     }
 
     parser.ignore_while(|c| c.is_whitespace());
@@ -159,7 +159,7 @@ fn parse_function(parser: &mut Parser) -> Result<Token, TracebackError<ParseErro
     parser.ignore_while(|c| c.is_whitespace());
 
     let raw_function = RawFunction {
-        name: function_name,
+        name: function_name.clone(),
         positional_args,
         named_args,
     };
@@ -174,5 +174,5 @@ fn parse_function(parser: &mut Parser) -> Result<Token, TracebackError<ParseErro
         }
     }
 
-    Err(parser.traceback(ParseError::InvalidFunctionName))
+    Err(parser.traceback(ParseError::NonexistentFunction(function_name.to_string())))
 }
