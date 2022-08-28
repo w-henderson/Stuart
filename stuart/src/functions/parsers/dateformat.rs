@@ -1,7 +1,7 @@
 use crate::functions::{Function, FunctionParser};
 use crate::parse::{ParseError, RawFunction};
 use crate::process::{ProcessError, Scope};
-use crate::quiet_assert;
+use crate::{quiet_assert, TracebackError};
 
 use chrono::{Local, NaiveTime};
 use dateparser::parse_with;
@@ -45,16 +45,21 @@ impl Function for DateFormatFunction {
         "dateformat"
     }
 
-    fn execute(&self, scope: &mut Scope) -> Result<(), ProcessError> {
-        let variable = scope
-            .get_variable(&self.variable_name)
-            .ok_or_else(|| ProcessError::UndefinedVariable(self.variable_name.clone()))?;
+    fn execute(&self, scope: &mut Scope) -> Result<(), TracebackError<ProcessError>> {
+        let self_token = scope.tokens.current().unwrap().clone();
 
-        let string = variable.as_str().ok_or(ProcessError::InvalidDataType {
-            variable: self.variable_name.clone(),
-            expected: "string".to_string(),
-            found: String::new(),
+        let variable = scope.get_variable(&self.variable_name).ok_or_else(|| {
+            self_token.traceback(ProcessError::UndefinedVariable(self.variable_name.clone()))
         })?;
+
+        let string =
+            variable
+                .as_str()
+                .ok_or(self_token.traceback(ProcessError::InvalidDataType {
+                    variable: self.variable_name.clone(),
+                    expected: "string".to_string(),
+                    found: String::new(),
+                }))?;
 
         let date = std::panic::catch_unwind(|| {
             parse_with(string, &Local, NaiveTime::from_hms(0, 0, 0))
@@ -62,9 +67,10 @@ impl Function for DateFormatFunction {
                 .map(|d| d.format(&self.format).to_string())
                 .ok_or(ProcessError::InvalidDate)
         })
-        .map_err(|_| ProcessError::InvalidDate)??;
+        .map_err(|_| self_token.traceback(ProcessError::InvalidDate))?
+        .map_err(|_| self_token.traceback(ProcessError::InvalidDate))?;
 
-        scope.output(date)?;
+        scope.output(date).map_err(|e| self_token.traceback(e))?;
 
         Ok(())
     }

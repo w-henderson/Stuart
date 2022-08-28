@@ -1,7 +1,7 @@
 use crate::functions::{Function, FunctionParser};
 use crate::parse::{ParseError, RawFunction};
 use crate::process::{ProcessError, Scope};
-use crate::quiet_assert;
+use crate::{quiet_assert, TracebackError};
 
 pub struct ExcerptParser;
 
@@ -42,16 +42,21 @@ impl Function for ExcerptFunction {
         "excerpt"
     }
 
-    fn execute(&self, scope: &mut Scope) -> Result<(), ProcessError> {
-        let variable = scope
-            .get_variable(&self.variable_name)
-            .ok_or_else(|| ProcessError::UndefinedVariable(self.variable_name.clone()))?;
+    fn execute(&self, scope: &mut Scope) -> Result<(), TracebackError<ProcessError>> {
+        let self_token = scope.tokens.current().unwrap().clone();
 
-        let string = variable.as_str().ok_or(ProcessError::InvalidDataType {
-            variable: self.variable_name.clone(),
-            expected: "string".to_string(),
-            found: String::new(),
+        let variable = scope.get_variable(&self.variable_name).ok_or_else(|| {
+            self_token.traceback(ProcessError::UndefinedVariable(self.variable_name.clone()))
         })?;
+
+        let string =
+            variable
+                .as_str()
+                .ok_or(self_token.traceback(ProcessError::InvalidDataType {
+                    variable: self.variable_name.clone(),
+                    expected: "string".to_string(),
+                    found: String::new(),
+                }))?;
 
         let mut chars = string.chars();
         let mut excerpt = String::with_capacity(self.length);
@@ -71,7 +76,7 @@ impl Function for ExcerptFunction {
             }
         }
 
-        scope.output(excerpt)?;
+        scope.output(excerpt).map_err(|e| self_token.traceback(e))?;
 
         Ok(())
     }

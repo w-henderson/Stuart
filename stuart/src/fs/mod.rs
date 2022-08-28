@@ -2,7 +2,9 @@ mod output;
 
 pub use output::OutputNode;
 
-use crate::parse::{parse, parse_markdown, ParseError, ParsedMarkdown, Token, TracebackError};
+use crate::parse::{
+    parse, parse_markdown, LocatableToken, ParseError, ParsedMarkdown, TracebackError,
+};
 
 use humphrey_json::Value;
 
@@ -35,7 +37,7 @@ pub enum Error {
 
 #[derive(Clone, Debug)]
 pub enum ParsedContents {
-    Html(Vec<Token>),
+    Html(Vec<LocatableToken>),
     Markdown(ParsedMarkdown),
     Json(Value),
     None,
@@ -209,7 +211,7 @@ impl Debug for Node {
 }
 
 impl ParsedContents {
-    pub fn tokens(&self) -> Option<&[Token]> {
+    pub fn tokens(&self) -> Option<&[LocatableToken]> {
         match self {
             Self::Html(tokens) => Some(tokens),
             _ => None,

@@ -129,4 +129,8 @@ impl<'a> Parser<'a> {
             }
         }
     }
+
+    pub fn location(&self) -> (u32, u32) {
+        (self.line, self.column)
+    }
 }

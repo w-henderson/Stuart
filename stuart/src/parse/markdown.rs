@@ -39,7 +39,7 @@ pub fn parse_markdown(
                     .next()
                     .ok_or(TracebackError {
                         path: path.to_path_buf(),
-                        line: i as u32,
+                        line: i as u32 + 1,
                         column: 0,
                         kind: ParseError::InvalidFrontmatter,
                     })?
@@ -50,7 +50,7 @@ pub fn parse_markdown(
                     .next()
                     .ok_or(TracebackError {
                         path: path.to_path_buf(),
-                        line: i as u32,
+                        line: i as u32 + 1,
                         column: 0,
                         kind: ParseError::InvalidFrontmatter,
                     })?
@@ -60,7 +60,7 @@ pub fn parse_markdown(
                     .ok_or(TracebackError {
                         path: path.to_path_buf(),
                         kind: ParseError::InvalidFrontmatter,
-                        line: i as u32,
+                        line: i as u32 + 1,
                         column: 0,
                     })?
                     .to_string();

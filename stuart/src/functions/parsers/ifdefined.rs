@@ -2,7 +2,7 @@ use crate::functions::{Function, FunctionParser};
 use crate::parse::{ParseError, RawFunction};
 use crate::process::stack::StackFrame;
 use crate::process::{ProcessError, Scope};
-use crate::quiet_assert;
+use crate::{quiet_assert, TracebackError};
 
 use humphrey_json::Value;
 
@@ -37,7 +37,9 @@ impl Function for IfDefinedFunction {
         "ifdefined"
     }
 
-    fn execute(&self, scope: &mut Scope) -> Result<(), ProcessError> {
+    fn execute(&self, scope: &mut Scope) -> Result<(), TracebackError<ProcessError>> {
+        let self_token = scope.tokens.current().unwrap().clone();
+
         let defined = scope
             .get_variable(&self.variable_name)
             .map(|v| !matches!(v, Value::Null))
@@ -52,7 +54,7 @@ impl Function for IfDefinedFunction {
             let token = scope
                 .tokens
                 .next()
-                .ok_or(ProcessError::UnexpectedEndOfFile)?;
+                .ok_or_else(|| self_token.traceback(ProcessError::UnexpectedEndOfFile))?;
 
             if defined
                 || (token

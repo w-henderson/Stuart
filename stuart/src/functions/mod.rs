@@ -21,6 +21,7 @@ pub mod parsers {
 use crate::parse::{ParseError, RawFunction};
 use crate::process::error::ProcessError;
 use crate::process::Scope;
+use crate::TracebackError;
 
 use std::fmt::Debug;
 
@@ -35,7 +36,7 @@ pub trait FunctionParser: Send + Sync {
 
 pub trait Function: Debug + Send + Sync {
     fn name(&self) -> &'static str;
-    fn execute(&self, scope: &mut Scope) -> Result<(), ProcessError>;
+    fn execute(&self, scope: &mut Scope) -> Result<(), TracebackError<ProcessError>>;
 }
 
 macro_rules! count {

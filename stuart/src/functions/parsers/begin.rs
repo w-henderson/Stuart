@@ -2,7 +2,7 @@ use crate::functions::{Function, FunctionParser};
 use crate::parse::{ParseError, RawArgument, RawFunction};
 use crate::process::stack::StackFrame;
 use crate::process::{ProcessError, Scope};
-use crate::quiet_assert;
+use crate::{quiet_assert, TracebackError};
 
 pub struct BeginParser;
 
@@ -40,7 +40,7 @@ impl Function for BeginFunction {
         "begin"
     }
 
-    fn execute(&self, scope: &mut Scope) -> Result<(), ProcessError> {
+    fn execute(&self, scope: &mut Scope) -> Result<(), TracebackError<ProcessError>> {
         scope
             .stack
             .push(StackFrame::new(format!("begin:{}", self.label)));

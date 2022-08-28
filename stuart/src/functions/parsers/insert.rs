@@ -1,7 +1,7 @@
 use crate::functions::{Function, FunctionParser};
 use crate::parse::{ParseError, RawFunction};
 use crate::process::{ProcessError, Scope};
-use crate::quiet_assert;
+use crate::{quiet_assert, TracebackError};
 
 pub struct InsertParser;
 
@@ -34,14 +34,21 @@ impl Function for InsertFunction {
         "insert"
     }
 
-    fn execute(&self, scope: &mut Scope) -> Result<(), ProcessError> {
-        let frame = scope.stack.last_mut().ok_or(ProcessError::StackError)?;
+    fn execute(&self, scope: &mut Scope) -> Result<(), TracebackError<ProcessError>> {
+        let self_token = scope.tokens.current().unwrap().clone();
+
+        let frame = scope
+            .stack
+            .last_mut()
+            .ok_or_else(|| self_token.traceback(ProcessError::StackError))?;
 
         let (_, section) = scope
             .sections
             .iter()
             .find(|(label, _)| label == &self.label)
-            .ok_or_else(|| ProcessError::UndefinedSection(self.label.clone()))?;
+            .ok_or_else(|| {
+                self_token.traceback(ProcessError::UndefinedSection(self.label.clone()))
+            })?;
 
         frame.output.extend_from_slice(section);
 

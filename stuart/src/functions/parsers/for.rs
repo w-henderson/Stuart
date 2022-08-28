@@ -3,7 +3,7 @@ use crate::functions::{Function, FunctionParser};
 use crate::parse::{ParseError, RawArgument, RawFunction};
 use crate::process::stack::StackFrame;
 use crate::process::{ProcessError, Scope};
-use crate::quiet_assert;
+use crate::{quiet_assert, TracebackError};
 
 use humphrey_json::Value;
 
@@ -114,8 +114,9 @@ impl Function for ForFunction {
         "for"
     }
 
-    fn execute(&self, scope: &mut Scope) -> Result<(), ProcessError> {
+    fn execute(&self, scope: &mut Scope) -> Result<(), TracebackError<ProcessError>> {
         let waypoint = scope.tokens.waypoint();
+        let self_token = scope.tokens.current().unwrap().clone();
 
         let mut variables: Vec<Value> = match self.source_type {
             ForFunctionSourceType::MarkdownDirectory => {
@@ -123,10 +124,12 @@ impl Function for ForFunction {
                     .processor
                     .fs
                     .get_at_path(&PathBuf::from(self.source.clone()))
-                    .ok_or_else(|| ProcessError::NotFound(self.source.clone()))?;
+                    .ok_or_else(|| {
+                        self_token.traceback(ProcessError::NotFound(self.source.clone()))
+                    })?;
 
                 if !directory.is_dir() {
-                    return Err(ProcessError::NotFound(self.source.clone()));
+                    return Err(self_token.traceback(ProcessError::NotFound(self.source.clone())));
                 }
 
                 directory
@@ -144,17 +147,19 @@ impl Function for ForFunction {
                     .processor
                     .fs
                     .get_at_path(&PathBuf::from(self.source.clone()))
-                    .ok_or_else(|| ProcessError::NotFound(self.source.clone()))?;
+                    .ok_or_else(|| {
+                        self_token.traceback(ProcessError::NotFound(self.source.clone()))
+                    })?;
 
                 if !file.is_file() {
-                    return Err(ProcessError::NotFound(self.source.clone()));
+                    return Err(self_token.traceback(ProcessError::NotFound(self.source.clone())));
                 }
 
                 match file.parsed_contents() {
                     ParsedContents::Json(json) => json.as_array().map(|a| a.iter().cloned()),
                     _ => None,
                 }
-                .ok_or(ProcessError::NotJsonArray)?
+                .ok_or_else(|| self_token.traceback(ProcessError::NotJsonArray))?
                 .collect()
             }
             ForFunctionSourceType::JSONObject => {
@@ -179,7 +184,7 @@ impl Function for ForFunction {
                 //#[allow(clippy::unnecessary_to_owned)]
                 variable
                     .and_then(|v| v.as_array().map(|a| a.to_vec()))
-                    .ok_or(ProcessError::NotJsonArray)?
+                    .ok_or_else(|| self_token.traceback(ProcessError::NotJsonArray))?
             }
         };
 
@@ -217,7 +222,7 @@ impl Function for ForFunction {
                 let token = scope
                     .tokens
                     .next()
-                    .ok_or(ProcessError::UnexpectedEndOfFile)?;
+                    .ok_or_else(|| self_token.traceback(ProcessError::UnexpectedEndOfFile))?;
                 token.process(scope)?;
             }
         }

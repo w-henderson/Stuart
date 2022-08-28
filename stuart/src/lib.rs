@@ -13,7 +13,7 @@ pub use error::*;
 pub use fs::Node;
 
 use crate::fs::{OutputNode, ParsedContents};
-use crate::parse::Token;
+use crate::parse::LocatableToken;
 use crate::process::error::ProcessError;
 
 use std::fmt::Debug;
@@ -39,8 +39,8 @@ pub struct Stuart {
 
 #[derive(Clone, Copy, Debug)]
 pub struct SpecialFiles<'a> {
-    pub root: Option<&'a [Token]>,
-    pub md: Option<&'a [Token]>,
+    pub root: Option<&'a [LocatableToken]>,
+    pub md: Option<&'a [LocatableToken]>,
 }
 
 impl Stuart {

@@ -10,14 +10,43 @@ pub use self::function::{RawArgument, RawFunction};
 pub use self::markdown::{parse_markdown, ParsedMarkdown};
 pub use self::parser::Parser;
 
-use std::path::Path;
+use std::fmt::Debug;
+use std::ops::Deref;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
+
+#[derive(Clone, Debug)]
+pub struct LocatableToken {
+    pub inner: Token,
+    pub path: PathBuf,
+    pub line: u32,
+    pub column: u32,
+}
 
 #[derive(Clone, Debug)]
 pub enum Token {
     Raw(String),
     Function(Rc<Box<dyn Function>>),
     Variable(String),
+}
+
+impl LocatableToken {
+    pub fn traceback<T: Clone + Debug>(&self, e: T) -> TracebackError<T> {
+        TracebackError {
+            path: self.path.clone(),
+            line: self.line,
+            column: self.column,
+            kind: e,
+        }
+    }
+}
+
+impl Deref for LocatableToken {
+    type Target = Token;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
 }
 
 impl Token {
@@ -43,17 +72,26 @@ impl Token {
     }
 }
 
-pub fn parse(input: &str, path: &Path) -> Result<Vec<Token>, TracebackError<ParseError>> {
+pub fn parse(input: &str, path: &Path) -> Result<Vec<LocatableToken>, TracebackError<ParseError>> {
     let chars = input.chars();
     let mut parser = Parser::new(chars, path);
     let mut tokens = Vec::new();
 
+    let (mut line, mut column) = parser.location();
+
     while let Some(raw) = parser.extract_until("{{") {
         if !raw.is_empty() {
-            tokens.push(Token::Raw(raw));
+            tokens.push(LocatableToken {
+                inner: Token::Raw(raw),
+                path: path.to_path_buf(),
+                line,
+                column,
+            });
         }
 
         parser.ignore_while(|c| c.is_whitespace());
+
+        (line, column) = parser.location();
 
         let token = match parser.peek() {
             Some('$') => parse_variable(&mut parser)?,
@@ -61,15 +99,27 @@ pub fn parse(input: &str, path: &Path) -> Result<Vec<Token>, TracebackError<Pars
             None => return Err(parser.traceback(ParseError::UnexpectedEOF)),
         };
 
-        tokens.push(token);
+        tokens.push(LocatableToken {
+            inner: token,
+            path: path.to_path_buf(),
+            line,
+            column,
+        });
 
         parser.ignore_while(|c| c.is_whitespace());
         parser.expect("}}")?;
+
+        (line, column) = parser.location();
     }
 
     let remaining = parser.extract_remaining();
     if !remaining.is_empty() {
-        tokens.push(Token::Raw(remaining));
+        tokens.push(LocatableToken {
+            inner: Token::Raw(remaining),
+            path: path.to_path_buf(),
+            line,
+            column,
+        });
     }
 
     Ok(tokens)

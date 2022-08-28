@@ -1,7 +1,7 @@
 use crate::functions::{Function, FunctionParser};
 use crate::parse::{ParseError, RawArgument, RawFunction};
 use crate::process::{ProcessError, Scope};
-use crate::quiet_assert;
+use crate::{quiet_assert, TracebackError};
 
 pub struct EndParser;
 
@@ -39,54 +39,56 @@ impl Function for EndFunction {
         "end"
     }
 
-    fn execute(&self, scope: &mut Scope) -> Result<(), ProcessError> {
+    fn execute(&self, scope: &mut Scope) -> Result<(), TracebackError<ProcessError>> {
+        let self_token = scope.tokens.current().unwrap().clone();
+
         match (self.custom, self.label.as_str()) {
             (true, _) => {
-                let frame = scope.stack.pop().ok_or(ProcessError::EndWithoutBegin)?;
+                let frame = scope
+                    .stack
+                    .pop()
+                    .ok_or_else(|| self_token.traceback(ProcessError::EndWithoutBegin))?;
 
                 if frame.name != format!("begin:{}", self.label) {
-                    return Err(ProcessError::EndWithoutBegin);
+                    return Err(self_token.traceback(ProcessError::EndWithoutBegin));
                 }
 
                 scope
-                    .stack
-                    .last_mut()
-                    .ok_or(ProcessError::StackError)?
-                    .output
-                    .extend_from_slice(&frame.output);
+                    .output(&frame.output)
+                    .map_err(|e| self_token.traceback(e))?;
 
                 scope.sections.push((self.label.clone(), frame.output));
             }
             (false, "for") => {
-                let frame = scope.stack.pop().ok_or(ProcessError::EndWithoutBegin)?;
+                let frame = scope
+                    .stack
+                    .pop()
+                    .ok_or_else(|| self_token.traceback(ProcessError::EndWithoutBegin))?;
 
                 if !frame.name.starts_with("for:") {
-                    return Err(ProcessError::EndWithoutBegin);
+                    return Err(self_token.traceback(ProcessError::EndWithoutBegin));
                 }
 
                 scope
-                    .stack
-                    .last_mut()
-                    .ok_or(ProcessError::StackError)?
-                    .output
-                    .extend_from_slice(&frame.output);
+                    .output(frame.output)
+                    .map_err(|e| self_token.traceback(e))?;
             }
             (false, "ifdefined") => {
-                let frame = scope.stack.pop().ok_or(ProcessError::EndWithoutBegin)?;
+                let frame = scope
+                    .stack
+                    .pop()
+                    .ok_or_else(|| self_token.traceback(ProcessError::EndWithoutBegin))?;
 
                 if !frame.name.starts_with("ifdefined:") {
-                    return Err(ProcessError::EndWithoutBegin);
+                    return Err(self_token.traceback(ProcessError::EndWithoutBegin));
                 }
 
                 scope
-                    .stack
-                    .last_mut()
-                    .ok_or(ProcessError::StackError)?
-                    .output
-                    .extend_from_slice(&frame.output);
+                    .output(frame.output)
+                    .map_err(|e| self_token.traceback(e))?;
             }
             _ => {
-                return Err(ProcessError::EndWithoutBegin);
+                return Err(self_token.traceback(ProcessError::EndWithoutBegin));
             }
         }
 

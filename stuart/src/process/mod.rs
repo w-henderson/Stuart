@@ -9,7 +9,7 @@ use self::iter::TokenIter;
 use self::stack::StackFrame;
 
 use crate::fs::{Node, ParsedContents};
-use crate::parse::{ParsedMarkdown, Token};
+use crate::parse::{LocatableToken, ParsedMarkdown, Token};
 use crate::{SpecialFiles, Stuart};
 
 use humphrey_json::Value;
@@ -39,7 +39,7 @@ impl Node {
 
     fn process_html(
         &self,
-        tokens: &[Token],
+        tokens: &[LocatableToken],
         processor: &Stuart,
         special_files: SpecialFiles,
     ) -> Result<Vec<u8>, TracebackError<ProcessError>> {
@@ -61,12 +61,7 @@ impl Node {
         };
 
         while let Some(token) = scope.tokens.next() {
-            token.process(&mut scope).map_err(|kind| TracebackError {
-                path: self.source().to_path_buf(),
-                line: 0,
-                column: 0,
-                kind,
-            })?;
+            token.process(&mut scope)?;
         }
 
         if !scope
@@ -83,18 +78,13 @@ impl Node {
             });
         }
 
-        let mut token_iter = TokenIter::new(&root);
+        let mut token_iter = TokenIter::new(root);
 
         scope.stack.push(StackFrame::new("base2"));
         scope.tokens = &mut token_iter;
 
         while let Some(token) = scope.tokens.next() {
-            token.process(&mut scope).map_err(|kind| TracebackError {
-                path: self.source().to_path_buf(),
-                line: 0,
-                column: 0,
-                kind,
-            })?;
+            token.process(&mut scope)?;
         }
 
         Ok(stack.pop().unwrap().output)
@@ -135,12 +125,7 @@ impl Node {
         };
 
         while let Some(token) = scope.tokens.next() {
-            token.process(&mut scope).map_err(|kind| TracebackError {
-                path: self.source().to_path_buf(),
-                line: 0,
-                column: 0,
-                kind,
-            })?;
+            token.process(&mut scope)?;
         }
 
         if !scope
@@ -157,18 +142,13 @@ impl Node {
             });
         }
 
-        let mut token_iter = TokenIter::new(&root);
+        let mut token_iter = TokenIter::new(root);
 
         scope.stack.push(StackFrame::new("base2"));
         scope.tokens = &mut token_iter;
 
         while let Some(token) = scope.tokens.next() {
-            token.process(&mut scope).map_err(|kind| TracebackError {
-                path: self.source().to_path_buf(),
-                line: 0,
-                column: 0,
-                kind,
-            })?;
+            token.process(&mut scope)?;
         }
 
         let new_name = format!("{}.html", self.name().strip_suffix(".md").unwrap());
@@ -177,9 +157,9 @@ impl Node {
     }
 }
 
-impl Token {
-    pub fn process(&self, scope: &mut Scope) -> Result<(), ProcessError> {
-        match self {
+impl LocatableToken {
+    pub fn process(&self, scope: &mut Scope) -> Result<(), TracebackError<ProcessError>> {
+        match &self.inner {
             Token::Raw(raw) => scope
                 .stack
                 .last_mut()
@@ -228,7 +208,8 @@ impl Token {
                                 expected: "string".to_string(),
                                 found: "object".to_string(),
                             }),
-                        }?;
+                        }
+                        .map_err(|e| self.traceback(e))?;
                     }
                 }
 
@@ -240,7 +221,9 @@ impl Token {
                         .output
                         .extend_from_slice(s.as_bytes());
                 } else {
-                    return Err(ProcessError::UndefinedVariable(variable.to_string()));
+                    return Err(
+                        self.traceback(ProcessError::UndefinedVariable(variable.to_string()))
+                    );
                 }
             }
         }
