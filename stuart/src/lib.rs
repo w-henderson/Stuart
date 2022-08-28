@@ -2,6 +2,7 @@ pub mod config;
 pub mod fs;
 pub mod parse;
 pub mod process;
+pub mod scripts;
 
 mod error;
 
@@ -11,6 +12,7 @@ pub mod functions;
 pub use config::Config;
 pub use error::*;
 pub use fs::Node;
+pub use scripts::Scripts;
 
 use crate::fs::{OutputNode, ParsedContents};
 use crate::parse::LocatableToken;

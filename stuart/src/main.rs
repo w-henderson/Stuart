@@ -1,5 +1,5 @@
 use clap::{App, Arg, ArgMatches, Command};
-use stuart::{Config, Node, Stuart, StuartError, TracebackError};
+use stuart::{Config, Node, Scripts, Stuart, StuartError, TracebackError};
 
 use std::{fs::read_to_string, path::PathBuf};
 
@@ -71,10 +71,16 @@ fn build(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
         },
     };
 
+    let scripts = Scripts::from_directory(path.parent().unwrap().join("scripts"));
+
+    scripts.execute_pre_build()?;
+
     let fs = Node::new(path.parent().unwrap().join("content"))?;
 
     let mut stuart = Stuart::new(fs, config);
     stuart.build(output)?;
+
+    scripts.execute_post_build()?;
 
     Ok(())
 }

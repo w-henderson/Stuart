@@ -1,6 +1,7 @@
 use crate::fs;
 use crate::parse::ParseError;
 use crate::process::ProcessError;
+use crate::scripts::ScriptError;
 
 use termcolor::{Buffer, BufferWriter, Color, ColorChoice, ColorSpec, WriteColor};
 
@@ -272,6 +273,35 @@ impl StuartError for ProcessError {
             ),
             ProcessError::NotFound(_) => None,
             ProcessError::InvalidDataType { .. } => None,
+        }
+    }
+}
+
+impl StuartError for ScriptError {
+    fn display(&self, buf: &mut Buffer) {
+        match self {
+            ScriptError::CouldNotExecute(script) => {
+                format!("could not execute script `{}`", script).display(buf)
+            }
+            ScriptError::ScriptFailure(script, code, stdout, stderr) => {
+                writeln!(buf, "script `{}` failed with exit code {}", script, code).unwrap();
+
+                if !stdout.is_empty() {
+                    buf.set_color(ColorSpec::new().set_fg(Some(Color::Red)).set_intense(true))
+                        .unwrap();
+                    writeln!(buf, "\nstdout:").unwrap();
+                    buf.reset().unwrap();
+                    writeln!(buf, "{}", stdout).unwrap();
+                }
+
+                if !stderr.is_empty() {
+                    buf.set_color(ColorSpec::new().set_fg(Some(Color::Red)).set_intense(true))
+                        .unwrap();
+                    writeln!(buf, "\nstderr:").unwrap();
+                    buf.reset().unwrap();
+                    writeln!(buf, "{}", stderr).unwrap();
+                }
+            }
         }
     }
 }
