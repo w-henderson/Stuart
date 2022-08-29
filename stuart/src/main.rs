@@ -124,8 +124,7 @@ fn build(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
         path.parent()
             .unwrap()
             .to_string_lossy()
-            .strip_prefix("\\\\?\\")
-            .unwrap()
+            .trim_start_matches("\\\\?\\")
     );
 
     let build_start = Instant::now();
