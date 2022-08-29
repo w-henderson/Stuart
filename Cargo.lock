@@ -331,6 +331,7 @@ dependencies = [
  "dateparser",
  "humphrey_json",
  "lazy_static",
+ "once_cell",
  "pulldown-cmark",
  "serde",
  "serde_derive",

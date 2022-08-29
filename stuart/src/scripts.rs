@@ -52,6 +52,12 @@ impl Scripts {
 
     fn execute(&self, scripts: &[PathBuf]) -> Result<(), ScriptError> {
         for script in scripts {
+            log!(
+                "Executing",
+                "script `{}`",
+                script.file_name().unwrap().to_string_lossy()
+            );
+
             let output = Command::new(script).output().map_err(|_| {
                 ScriptError::CouldNotExecute(
                     script.file_name().unwrap().to_string_lossy().to_string(),

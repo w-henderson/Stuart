@@ -1,3 +1,8 @@
+#[macro_use]
+pub mod functions;
+#[macro_use]
+pub mod logger;
+
 pub mod config;
 pub mod fs;
 pub mod parse;
@@ -6,12 +11,10 @@ pub mod scripts;
 
 mod error;
 
-#[macro_use]
-pub mod functions;
-
 pub use config::Config;
 pub use error::*;
 pub use fs::{Node, OutputNode};
+pub use logger::*;
 pub use scripts::Scripts;
 
 use crate::fs::ParsedContents;

@@ -1,14 +1,33 @@
+#[macro_use]
+extern crate stuart;
+
 use clap::{App, Arg, ArgMatches, Command};
-use stuart::{fs, Config, Node, OutputNode, Scripts, Stuart, StuartError, TracebackError};
+use stuart::{
+    fs, Config, LogLevel, Logger, Node, OutputNode, Scripts, Stuart, StuartError, TracebackError,
+};
 
 use std::fs::{create_dir, read_to_string, remove_dir_all, write};
 use std::io::Write;
 use std::path::PathBuf;
+use std::time::Instant;
 
 fn main() {
     let matches = App::new("Stuart")
         .version(env!("CARGO_PKG_VERSION"))
         .author("William Henderson <william-henderson@outlook.com>")
+        .arg(
+            Arg::new("quiet")
+                .short('q')
+                .long("quiet")
+                .help("Suppress all output except errors")
+                .conflicts_with("verbose"),
+        )
+        .arg(
+            Arg::new("verbose")
+                .short('v')
+                .long("verbose")
+                .help("Output verbose information"),
+        )
         .subcommand(
             Command::new("build")
                 .about("Builds the site")
@@ -39,6 +58,16 @@ fn main() {
         .subcommand_required(true)
         .get_matches();
 
+    let log_level = if matches.is_present("quiet") {
+        LogLevel::Quiet
+    } else if matches.is_present("verbose") {
+        LogLevel::Verbose
+    } else {
+        LogLevel::Normal
+    };
+
+    Logger::new(log_level).register();
+
     let result = match matches.subcommand() {
         Some(("build", args)) => build(args),
         Some(("new", args)) => new(args),
@@ -46,6 +75,10 @@ fn main() {
     };
 
     if let Err(e) = result {
+        if stuart::LOGGER.get().unwrap().has_logged() {
+            println!();
+        }
+
         e.print();
         std::process::exit(1);
     }
@@ -80,11 +113,26 @@ fn build(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
 
     let scripts = Scripts::from_directory(path.parent().unwrap().join("scripts"));
 
+    let pre_build_start = Instant::now();
     scripts.execute_pre_build()?;
+    let pre_build_duration = pre_build_start.elapsed().as_micros();
 
+    log!(
+        "Building",
+        "{} ({})",
+        config.name,
+        path.parent()
+            .unwrap()
+            .to_string_lossy()
+            .strip_prefix("\\\\?\\")
+            .unwrap()
+    );
+
+    let build_start = Instant::now();
     let fs = Node::new(path.parent().unwrap().join("content"))?;
     let mut stuart = Stuart::new(fs, config);
     stuart.build()?;
+    let build_duration = build_start.elapsed().as_micros();
 
     for dir in ["static", "temp"] {
         let dir_path = path.parent().unwrap().join(dir);
@@ -99,7 +147,22 @@ fn build(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
 
     stuart.save(path.parent().unwrap().join(output))?;
 
+    let post_build_start = Instant::now();
     scripts.execute_post_build()?;
+    let post_build_duration = post_build_start.elapsed().as_micros();
+
+    let total_duration =
+        ((pre_build_duration + build_duration + post_build_duration) / 100) as f64 / 10.0;
+    let build_duration = (build_duration / 100) as f64 / 10.0;
+    let scripts_duration = ((pre_build_duration + post_build_duration) / 100) as f64 / 10.0;
+
+    log!(
+        "Finished",
+        "build in {}ms ({}ms build, {}ms scripts)",
+        total_duration,
+        build_duration,
+        scripts_duration
+    );
 
     Ok(())
 }
@@ -143,6 +206,8 @@ fn new(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
     if !no_git {
         stuart::config::git::init_repository(&format!("./{}", name));
     }
+
+    log!("Created", "new Stuart website `{}`", name);
 
     Ok(())
 }
