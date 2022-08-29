@@ -37,7 +37,7 @@ fn build_watcher(rx: Receiver<RawEvent>) {
                 .as_ref()
                 .unwrap()
                 .components()
-                .any(|c| c.as_os_str() == "dist")
+                .any(|c| c.as_os_str() == "dist" || c.as_os_str() == "temp")
             {
                 continue;
             }
