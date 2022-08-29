@@ -28,10 +28,6 @@ impl Logger {
         LOGGER.set(self).unwrap();
     }
 
-    pub fn global() -> &'static Logger {
-        LOGGER.get().unwrap()
-    }
-
     pub fn has_logged(&self) -> bool {
         self.has_logged.load(Ordering::SeqCst)
     }

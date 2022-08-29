@@ -1,10 +1,16 @@
 #[macro_use]
-extern crate stuart;
+mod logger;
+
+mod config;
+mod error;
+mod scripts;
+
+use crate::error::StuartError;
+use crate::logger::{LogLevel, Logger, LOGGER};
+use crate::scripts::Scripts;
 
 use clap::{App, Arg, ArgMatches, Command};
-use stuart::{
-    fs, Config, LogLevel, Logger, Node, OutputNode, Scripts, Stuart, StuartError, TracebackError,
-};
+use stuart_core::{fs, Node, OutputNode, Stuart, TracebackError};
 
 use std::fs::{create_dir, read_to_string, remove_dir_all, write};
 use std::io::Write;
@@ -75,7 +81,7 @@ fn main() {
     };
 
     if let Err(e) = result {
-        if stuart::LOGGER.get().unwrap().has_logged() {
+        if LOGGER.get().unwrap().has_logged() {
             println!();
         }
 
@@ -96,7 +102,7 @@ fn build(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
     let manifest =
         read_to_string(&path).map_err(|e| format!("failed to read manifest:\n  {}", e))?;
 
-    let config = match Config::load(&manifest) {
+    let config = match config::load(&manifest) {
         Ok(config) => config,
         Err(e) => match e.line_col() {
             Some((line, col)) => {
@@ -178,8 +184,8 @@ fn new(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
 
     let mut manifest: Vec<u8> = format!("[site]\nname = \"{}\"", name).as_bytes().to_vec();
 
-    if let Some((name, email)) = stuart::config::git::get_user_name()
-        .and_then(|name| stuart::config::git::get_user_email().map(|email| (name, email)))
+    if let Some((name, email)) = config::git::get_user_name()
+        .and_then(|name| config::git::get_user_email().map(|email| (name, email)))
     {
         write!(&mut manifest, "\nauthor = \"{} <{}>\"", name, email).unwrap();
     }
@@ -208,7 +214,7 @@ fn new(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
     .map_err(|_| fs::Error::Write)?;
 
     if !no_git {
-        stuart::config::git::init_repository(&format!("./{}", name));
+        config::git::init_repository(&format!("./{}", name));
     }
 
     log!("Created", "new Stuart website `{}`", name);

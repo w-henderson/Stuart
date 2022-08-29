@@ -1,0 +1,11 @@
+[package]
+name = "stuart_core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+humphrey_json = "^0.2.0"
+pulldown-cmark = "^0.9.2"
+lazy_static = "^1.4.0"
+dateparser = "0.1.7"
+chrono = "^0.4"

@@ -78,9 +78,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "3.2.17"
+version = "3.2.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "29e724a68d9319343bb3328c9cc2dfde263f4b3142ee1059a9980580171c954b"
+checksum = "b15f2ea93df33549dbe2e8eecd1ca55269d63ae0b3ba1f55db030817d1c2867f"
 dependencies = [
  "atty",
  "bitflags",
@@ -326,17 +326,24 @@ checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
 name = "stuart"
 version = "0.1.0"
 dependencies = [
- "chrono",
  "clap",
+ "once_cell",
+ "serde",
+ "serde_derive",
+ "stuart_core",
+ "termcolor",
+ "toml",
+]
+
+[[package]]
+name = "stuart_core"
+version = "0.1.0"
+dependencies = [
+ "chrono",
  "dateparser",
  "humphrey_json",
  "lazy_static",
- "once_cell",
  "pulldown-cmark",
- "serde",
- "serde_derive",
- "termcolor",
- "toml",
 ]
 
 [[package]]

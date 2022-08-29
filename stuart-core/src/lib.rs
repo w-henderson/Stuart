@@ -1,28 +1,20 @@
-#[macro_use]
-pub mod functions;
-#[macro_use]
-pub mod logger;
-
 pub mod config;
 pub mod fs;
 pub mod parse;
 pub mod process;
-pub mod scripts;
 
-mod error;
+#[macro_use]
+pub mod functions;
 
 pub use config::Config;
-pub use error::*;
 pub use fs::{Node, OutputNode};
-pub use logger::*;
-pub use scripts::Scripts;
 
 use crate::fs::ParsedContents;
 use crate::parse::LocatableToken;
 use crate::process::error::ProcessError;
 
 use std::fmt::Debug;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 define_functions![
     functions::parsers::Begin,
@@ -47,6 +39,14 @@ pub struct Stuart {
 pub struct SpecialFiles<'a> {
     pub root: Option<&'a [LocatableToken]>,
     pub md: Option<&'a [LocatableToken]>,
+}
+
+#[derive(Clone, Debug)]
+pub struct TracebackError<T: Clone + Debug> {
+    pub path: PathBuf,
+    pub line: u32,
+    pub column: u32,
+    pub kind: T,
 }
 
 impl Stuart {

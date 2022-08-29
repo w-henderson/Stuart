@@ -1,15 +1,15 @@
-use crate::fs;
-use crate::parse::ParseError;
-use crate::process::ProcessError;
 use crate::scripts::ScriptError;
+
+use stuart_core::parse::ParseError;
+use stuart_core::process::ProcessError;
+use stuart_core::{fs, TracebackError};
 
 use termcolor::{Buffer, BufferWriter, Color, ColorChoice, ColorSpec, WriteColor};
 
 use std::env::current_dir;
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 use std::fs::read_to_string;
 use std::io::Write;
-use std::path::PathBuf;
 
 pub trait StuartError {
     fn display(&self, buf: &mut Buffer);
@@ -31,14 +31,6 @@ pub trait StuartError {
         self.display(&mut buffer);
         writer.print(&buffer).unwrap();
     }
-}
-
-#[derive(Clone, Debug)]
-pub struct TracebackError<T: Clone + Debug> {
-    pub path: PathBuf,
-    pub line: u32,
-    pub column: u32,
-    pub kind: T,
 }
 
 impl<T: Clone + Debug + StuartError> StuartError for TracebackError<T> {
@@ -333,7 +325,13 @@ impl StuartError for ScriptError {
     }
 }
 
-impl<T: Display> StuartError for T {
+impl StuartError for String {
+    fn display(&self, buf: &mut Buffer) {
+        writeln!(buf, "{}", self).unwrap();
+    }
+}
+
+impl StuartError for &str {
     fn display(&self, buf: &mut Buffer) {
         writeln!(buf, "{}", self).unwrap();
     }
