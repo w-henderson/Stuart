@@ -30,9 +30,9 @@ define_functions![
 
 #[derive(Debug)]
 pub struct Stuart {
-    fs: Node,
-    out: Option<OutputNode>,
-    config: Config,
+    pub fs: Node,
+    pub out: Option<OutputNode>,
+    pub config: Config,
 }
 
 #[derive(Clone, Copy, Debug)]

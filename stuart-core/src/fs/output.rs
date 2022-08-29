@@ -3,7 +3,7 @@ use crate::fs::Error;
 
 use std::fs::{create_dir, read, read_dir, remove_dir_all, write};
 use std::io::ErrorKind;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 #[derive(Clone, Debug)]
 pub enum OutputNode {
@@ -88,17 +88,45 @@ impl OutputNode {
         }
     }
 
-    fn name(&self) -> &str {
+    pub fn get_at_path(&self, path: &Path) -> Option<&Self> {
+        let mut working_path = vec![self];
+
+        for part in path.components() {
+            match part {
+                Component::Normal(name) => {
+                    working_path.push(
+                        working_path
+                            .last()
+                            .and_then(|n| n.children())
+                            .and_then(|children| children.iter().find(|n| n.name() == name))?,
+                    );
+                }
+                Component::CurDir => (),
+                _ => return None,
+            }
+        }
+
+        working_path.last().copied()
+    }
+
+    pub fn name(&self) -> &str {
         match self {
             Self::File { name, .. } => name,
             Self::Directory { name, .. } => name,
         }
     }
 
-    fn source(&self) -> &Path {
+    pub fn source(&self) -> &Path {
         match self {
             Self::File { source, .. } => source,
             Self::Directory { source, .. } => source,
+        }
+    }
+
+    pub fn children(&self) -> Option<&[Self]> {
+        match self {
+            Self::Directory { children, .. } => Some(children),
+            Self::File { .. } => None,
         }
     }
 
