@@ -145,23 +145,28 @@ fn build(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
 
     remove_dir_all(path.parent().unwrap().join("temp")).ok();
 
+    let save_start = Instant::now();
     stuart.save(path.parent().unwrap().join(output))?;
+    let save_duration = save_start.elapsed().as_micros();
 
     let post_build_start = Instant::now();
     scripts.execute_post_build()?;
     let post_build_duration = post_build_start.elapsed().as_micros();
 
     let total_duration =
-        ((pre_build_duration + build_duration + post_build_duration) / 100) as f64 / 10.0;
+        ((pre_build_duration + build_duration + save_duration + post_build_duration) / 100) as f64
+            / 10.0;
     let build_duration = (build_duration / 100) as f64 / 10.0;
+    let fs_duration = (save_duration / 100) as f64 / 10.0;
     let scripts_duration = ((pre_build_duration + post_build_duration) / 100) as f64 / 10.0;
 
     log!(
         "Finished",
-        "build in {}ms ({}ms build, {}ms scripts)",
+        "build in {}ms ({}ms build, {}ms scripts, {}ms filesystem)",
         total_duration,
         build_duration,
-        scripts_duration
+        scripts_duration,
+        fs_duration
     );
 
     Ok(())
