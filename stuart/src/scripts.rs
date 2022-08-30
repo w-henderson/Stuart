@@ -2,6 +2,18 @@ use std::fs::read_dir;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+#[cfg(target_os = "windows")]
+mod constants {
+    pub(super) static PRE_BUILD_SCRIPT_NAMES: [&str; 1] = ["onPreBuild.bat"];
+    pub(super) static POST_BUILD_SCRIPT_NAMES: [&str; 1] = ["onPostBuild.bat"];
+}
+
+#[cfg(not(target_os = "windows"))]
+mod constants {
+    pub(super) static PRE_BUILD_SCRIPT_NAMES: [&str; 2] = ["onPreBuild.sh", "onPreBuild"];
+    pub(super) static POST_BUILD_SCRIPT_NAMES: [&str; 2] = ["onPostBuild.sh", "onPostBuild"];
+}
+
 #[derive(Debug, Default)]
 pub struct Scripts {
     on_pre_build: Vec<PathBuf>,
@@ -20,16 +32,12 @@ impl Scripts {
 
             for entry in dir.flatten() {
                 if entry.path().is_file() {
-                    if entry
-                        .file_name()
-                        .to_string_lossy()
-                        .starts_with("onPreBuild")
+                    if constants::PRE_BUILD_SCRIPT_NAMES
+                        .contains(&entry.file_name().to_string_lossy().as_ref())
                     {
                         scripts.on_pre_build.push(entry.path());
-                    } else if entry
-                        .file_name()
-                        .to_string_lossy()
-                        .starts_with("onPostBuild")
+                    } else if constants::POST_BUILD_SCRIPT_NAMES
+                        .contains(&entry.file_name().to_string_lossy().as_ref())
                     {
                         scripts.on_post_build.push(entry.path());
                     }
@@ -58,7 +66,15 @@ impl Scripts {
                 script.file_name().unwrap().to_string_lossy()
             );
 
+            #[cfg(target_os = "windows")]
             let output = Command::new(script).output().map_err(|_| {
+                ScriptError::CouldNotExecute(
+                    script.file_name().unwrap().to_string_lossy().to_string(),
+                )
+            })?;
+
+            #[cfg(not(target_os = "windows"))]
+            let output = Command::new("sh").arg(script).output().map_err(|_| {
                 ScriptError::CouldNotExecute(
                     script.file_name().unwrap().to_string_lossy().to_string(),
                 )
