@@ -6,6 +6,7 @@ use crate::parse::{
     parse, parse_markdown, LocatableToken, ParseError, ParsedMarkdown, TracebackError,
 };
 
+use humphrey_json::prelude::*;
 use humphrey_json::Value;
 
 use std::fmt::Debug;
@@ -223,6 +224,23 @@ impl ParsedContents {
         match self {
             Self::Markdown(markdown) => Some(markdown),
             _ => None,
+        }
+    }
+
+    pub fn to_json(&self) -> Option<Value> {
+        match self {
+            ParsedContents::Html(_) => None,
+            ParsedContents::None => None,
+
+            ParsedContents::Markdown(md) => Some(json!({
+                "type": "markdown",
+                "value": (md.to_json())
+            })),
+
+            ParsedContents::Json(v) => Some(json!({
+                "type": "json",
+                "value": (v.clone())
+            })),
         }
     }
 }

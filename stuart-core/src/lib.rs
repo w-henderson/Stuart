@@ -13,6 +13,8 @@ use crate::fs::ParsedContents;
 use crate::parse::LocatableToken;
 use crate::process::error::ProcessError;
 
+use humphrey_json::prelude::*;
+
 use std::fmt::Debug;
 use std::path::{Path, PathBuf};
 
@@ -78,9 +80,26 @@ impl Stuart {
         }
     }
 
-    pub fn save(&mut self, path: impl AsRef<Path>) -> Result<(), ProcessError> {
+    pub fn save(&self, path: impl AsRef<Path>) -> Result<(), ProcessError> {
         if let Some(out) = &self.out {
             out.save(&path, &self.config).map_err(ProcessError::Fs)
+        } else {
+            Err(ProcessError::NotBuilt)
+        }
+    }
+
+    pub fn save_metadata(&self, path: impl AsRef<Path>) -> Result<(), ProcessError> {
+        if !self.config.save_metadata {
+            return Err(ProcessError::MetadataNotEnabled);
+        }
+
+        if let Some(out) = &self.out {
+            let base = json!({
+                "name": (self.config.name.clone()),
+                "author": (self.config.author.clone())
+            });
+
+            out.save_metadata(base, &path).map_err(ProcessError::Fs)
         } else {
             Err(ProcessError::NotBuilt)
         }
@@ -113,7 +132,7 @@ impl Stuart {
                 name,
                 contents,
                 source,
-                ..
+                parsed_contents,
             } => {
                 if name != "root.html" && name != "md.html" {
                     let (new_contents, new_name) = node.process(self, specials)?;
@@ -122,12 +141,18 @@ impl Stuart {
                         name: new_name.unwrap_or_else(|| name.clone()),
                         contents: new_contents.unwrap_or_else(|| contents.clone()),
                         source: source.clone(),
+                        json: if self.config.save_metadata {
+                            parsed_contents.to_json()
+                        } else {
+                            None
+                        },
                     })
                 } else {
                     Ok(OutputNode::File {
                         name: name.clone(),
                         contents: contents.clone(),
                         source: source.clone(),
+                        json: None,
                     })
                 }
             }

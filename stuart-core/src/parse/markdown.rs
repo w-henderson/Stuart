@@ -98,13 +98,17 @@ pub fn parse_markdown(
 
 impl ParsedMarkdown {
     pub fn to_value(&self) -> Value {
-        let mut children = self
+        let mut v = self.to_json();
+        v["content"] = Value::String(self.body.clone());
+        v
+    }
+
+    pub fn to_json(&self) -> Value {
+        let children = self
             .frontmatter
             .iter()
             .map(|(key, value)| (key.clone(), Value::String(value.clone())))
             .collect::<Vec<_>>();
-
-        children.push(("content".to_string(), Value::String(self.body.clone())));
 
         Value::Object(children)
     }

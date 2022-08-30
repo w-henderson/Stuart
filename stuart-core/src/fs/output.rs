@@ -1,6 +1,9 @@
 use crate::config::Config;
 use crate::fs::Error;
 
+use humphrey_json::prelude::*;
+use humphrey_json::Value;
+
 use std::fs::{create_dir, read, read_dir, remove_dir_all, write};
 use std::io::ErrorKind;
 use std::path::{Component, Path, PathBuf};
@@ -11,6 +14,7 @@ pub enum OutputNode {
         name: String,
         contents: Vec<u8>,
         source: PathBuf,
+        json: Option<Value>,
     },
     Directory {
         name: String,
@@ -47,6 +51,14 @@ impl OutputNode {
             }
             _ => panic!("`OutputNode::save` should only be used on the root directory"),
         }
+
+        Ok(())
+    }
+
+    pub fn save_metadata(&self, mut base: Value, path: impl AsRef<Path>) -> Result<(), Error> {
+        base["data"] = self.save_metadata_recur(true);
+
+        write(path, base.serialize()).map_err(|_| Error::Write)?;
 
         Ok(())
     }
@@ -174,6 +186,40 @@ impl OutputNode {
         Ok(())
     }
 
+    fn save_metadata_recur(&self, is_first: bool) -> Value {
+        match self {
+            Self::Directory { name, children, .. } => {
+                let children = children
+                    .iter()
+                    .map(|c| c.save_metadata_recur(false))
+                    .collect();
+
+                if is_first {
+                    Value::Array(children)
+                } else {
+                    json!({
+                        "type": "directory",
+                        "name": name,
+                        "children": (Value::Array(children))
+                    })
+                }
+            }
+            Self::File { name, json, .. } => {
+                let mut metadata = json!({ "name": name });
+
+                if let Some(json) = json {
+                    for (key, value) in json.as_object().unwrap() {
+                        metadata[key.as_str()] = value.clone();
+                    }
+                } else {
+                    metadata["type"] = json!("file");
+                }
+
+                metadata
+            }
+        }
+    }
+
     fn create_from_dir(dir: impl AsRef<Path>) -> Result<Self, Error> {
         let dir = dir.as_ref();
         let content =
@@ -208,6 +254,7 @@ impl OutputNode {
             name,
             contents,
             source: file.to_path_buf(),
+            json: None,
         })
     }
 }

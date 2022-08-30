@@ -12,6 +12,7 @@ pub enum ProcessError {
     InvalidDate,
     UnexpectedEndOfFile,
     NotBuilt,
+    MetadataNotEnabled,
     Fs(fs::Error),
     VariableAlreadyExists(String),
     UndefinedVariable(String),
