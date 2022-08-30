@@ -1,0 +1,1 @@
+(()=>{let a=new WebSocket(`ws://${location.host}/__ws`);a.onmessage=()=>location.reload(true)})()

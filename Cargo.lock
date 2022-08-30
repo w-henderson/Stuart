@@ -222,6 +222,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "humphrey_ws"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "88cc8b017ff455235c198b33e3200edcc115f1a444bb635022bfd1d7a6653d46"
+dependencies = [
+ "humphrey",
+]
+
+[[package]]
 name = "iana-time-zone"
 version = "0.1.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -531,6 +540,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "humphrey",
+ "humphrey_ws",
  "notify",
  "once_cell",
  "serde",
