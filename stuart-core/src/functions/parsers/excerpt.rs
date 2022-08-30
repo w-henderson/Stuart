@@ -49,18 +49,18 @@ impl Function for ExcerptFunction {
             self_token.traceback(ProcessError::UndefinedVariable(self.variable_name.clone()))
         })?;
 
-        let string =
-            variable
-                .as_str()
-                .ok_or(self_token.traceback(ProcessError::InvalidDataType {
-                    variable: self.variable_name.clone(),
-                    expected: "string".to_string(),
-                    found: String::new(),
-                }))?;
+        let string = variable.as_str().ok_or_else(|| {
+            self_token.traceback(ProcessError::InvalidDataType {
+                variable: self.variable_name.clone(),
+                expected: "string".to_string(),
+                found: String::new(),
+            })
+        })?;
 
         let mut chars = string.chars();
-        let mut excerpt = String::with_capacity(self.length);
+        let mut excerpt = String::with_capacity(self.length + 3);
         let mut tag = false;
+        let mut total_chars: usize = 0;
 
         while excerpt.len() < self.length {
             if let Some(ch) = chars.next() {
@@ -71,9 +71,15 @@ impl Function for ExcerptFunction {
                 } else if !tag {
                     excerpt.push(ch);
                 }
+
+                total_chars += 1;
             } else {
                 break;
             }
+        }
+
+        if total_chars < string.len() {
+            excerpt.push_str("...");
         }
 
         scope.output(excerpt).map_err(|e| self_token.traceback(e))?;

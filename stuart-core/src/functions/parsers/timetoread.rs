@@ -52,7 +52,7 @@ impl Function for TimeToReadFunction {
         })?;
 
         let words = string.split_whitespace().count();
-        let minutes = words / WORDS_PER_MINUTE;
+        let minutes = (words / WORDS_PER_MINUTE).max(1);
 
         scope
             .output(minutes.to_string())
