@@ -57,7 +57,7 @@ pub fn build(manifest_path: &str, output: &str) -> Result<BuildInfo, Box<dyn Stu
 
     let build_start = Instant::now();
     let fs = Node::new(path.parent().unwrap().join("content"))?;
-    let mut stuart = Stuart::new(fs, config);
+    let mut stuart = Stuart::new(fs, config.clone());
     stuart.build()?;
     let build_duration = build_start.elapsed().as_micros();
 
@@ -75,6 +75,13 @@ pub fn build(manifest_path: &str, output: &str) -> Result<BuildInfo, Box<dyn Stu
     let save_start = Instant::now();
     stuart.save(path.parent().unwrap().join(output))?;
     let save_duration = save_start.elapsed().as_micros();
+
+    if config.save_metadata {
+        log!("Exporting", "metadata to `metadata.json`");
+
+        let metadata_path = path.parent().unwrap().join("metadata.json");
+        stuart.save_metadata(&metadata_path)?;
+    }
 
     let post_build_start = Instant::now();
     scripts.execute_post_build()?;

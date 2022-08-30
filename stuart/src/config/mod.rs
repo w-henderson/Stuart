@@ -20,6 +20,7 @@ struct Site {
 struct Settings {
     strip_extensions: Option<bool>,
     save_data_files: Option<bool>,
+    save_metadata: Option<bool>,
 }
 
 pub fn load(string: &str) -> Result<Config, toml::de::Error> {
@@ -44,6 +45,11 @@ impl From<RawConfig> for Config {
                 .as_ref()
                 .and_then(|settings| settings.save_data_files)
                 .unwrap_or(default.save_data_files),
+            save_metadata: raw
+                .settings
+                .as_ref()
+                .and_then(|settings| settings.save_metadata)
+                .unwrap_or(default.save_metadata),
         }
     }
 }

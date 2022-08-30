@@ -229,6 +229,9 @@ impl StuartError for ProcessError {
             ProcessError::InvalidDate => "invalid date".display(buf),
             ProcessError::UnexpectedEndOfFile => "unexpected end of file".display(buf),
             ProcessError::NotBuilt => "not built".display(buf),
+            ProcessError::MetadataNotEnabled => {
+                "metadata saving not enabled in configuration".display(buf)
+            }
             ProcessError::Fs(e) => e.display(buf),
             ProcessError::VariableAlreadyExists(name) => {
                 format!("variable already exists: `{}`", name).display(buf)
@@ -280,6 +283,10 @@ impl StuartError for ProcessError {
             }
             ProcessError::UnexpectedEndOfFile => None,
             ProcessError::NotBuilt => None,
+            ProcessError::MetadataNotEnabled => Some(
+                "enable metadata by adding `save_metadata = true` to your `stuart.toml`"
+                    .to_string(),
+            ),
             ProcessError::Fs(e) => e.help(),
             ProcessError::VariableAlreadyExists(_) => {
                 Some("variables in Stuart are immutable (for the time being)".to_string())
