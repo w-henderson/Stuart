@@ -1,3 +1,7 @@
+mod progress;
+
+pub use progress::Progress;
+
 use once_cell::sync::OnceCell;
 use std::sync::atomic::{AtomicBool, Ordering};
 

@@ -8,7 +8,7 @@ mod scripts;
 mod serve;
 
 use crate::error::StuartError;
-use crate::logger::{LogLevel, Logger, LOGGER};
+use crate::logger::{LogLevel, Logger, Progress, LOGGER};
 
 use clap::{App, Arg, ArgMatches, Command};
 use stuart_core::fs;
@@ -145,14 +145,21 @@ fn bench(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
 
     LOGGER.get().unwrap().enabled.store(false, Ordering::SeqCst);
 
-    for i in 1..=iters {
-        let result = build::build("../benchmark/stuart.toml", "../benchmark/dist")?;
+    let mut progress = Progress::new("Processing", iters);
+    progress.print();
+
+    for _ in 1..=iters {
+        let result = build::build("stuart.toml", "dist")?;
 
         total += result.total_duration;
         total_build += result.build_duration;
         total_scripts += result.scripts_duration;
         total_fs += result.fs_duration;
+
+        progress.next();
     }
+
+    println!();
 
     LOGGER.get().unwrap().enabled.store(true, Ordering::SeqCst);
 
