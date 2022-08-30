@@ -21,6 +21,7 @@ fn main() {
     let matches = App::new("Stuart")
         .version(env!("CARGO_PKG_VERSION"))
         .author("William Henderson <william-henderson@outlook.com>")
+        .about("A Blazingly-Fast Static Site Generator")
         .arg(
             Arg::new("quiet")
                 .short('q')
@@ -51,7 +52,23 @@ fn main() {
                         .default_value("dist"),
                 ),
         )
-        .subcommand(Command::new("dev").about("Starts the development server"))
+        .subcommand(
+            Command::new("dev")
+                .about("Starts the development server")
+                .arg(
+                    Arg::new("manifest-path")
+                        .long("manifest-path")
+                        .help("Path to the manifest file")
+                        .default_value("stuart.toml"),
+                )
+                .arg(
+                    Arg::new("output")
+                        .long("output")
+                        .short('o')
+                        .help("Output directory")
+                        .default_value("dist"),
+                ),
+        )
         .subcommand(
             Command::new("new")
                 .about("Creates a new site")
@@ -78,7 +95,7 @@ fn main() {
     #[allow(clippy::unit_arg)]
     let result = match matches.subcommand() {
         Some(("build", args)) => build(args),
-        Some(("dev", _)) => Ok(serve::serve()),
+        Some(("dev", args)) => serve::serve(args.clone()),
         Some(("new", args)) => new(args),
         _ => unreachable!(),
     };
