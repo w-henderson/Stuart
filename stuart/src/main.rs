@@ -4,6 +4,7 @@ mod logger;
 mod build;
 mod config;
 mod error;
+mod new;
 mod scripts;
 mod serve;
 
@@ -11,11 +12,7 @@ use crate::error::StuartError;
 use crate::logger::{LogLevel, Logger, Progress, LOGGER};
 
 use clap::{App, Arg, ArgMatches, Command};
-use stuart_core::fs;
 
-use std::fs::{create_dir, write};
-use std::io::Write;
-use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 
 fn main() {
@@ -109,7 +106,7 @@ fn main() {
     let result = match matches.subcommand() {
         Some(("build", args)) => build(args),
         Some(("dev", args)) => serve::serve(args.clone()),
-        Some(("new", args)) => new(args),
+        Some(("new", args)) => new::new(args),
         Some(("bench", args)) => bench(args),
         _ => unreachable!(),
     };
@@ -172,51 +169,6 @@ fn bench(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
     log!("Build:", "{:.2}ms mean", avg_build);
     log!("Scripts:", "{:.2}ms mean", avg_scripts);
     log!("Filesystem:", "{:.2}ms mean", avg_fs);
-
-    Ok(())
-}
-
-fn new(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
-    let name = args.value_of("name").unwrap();
-    let path = PathBuf::try_from(name).map_err(|_| fs::Error::Write)?;
-    let no_git = args.is_present("no-git");
-
-    let mut manifest: Vec<u8> = format!("[site]\nname = \"{}\"", name).as_bytes().to_vec();
-
-    if let Some((name, email)) = config::git::get_user_name()
-        .and_then(|name| config::git::get_user_email().map(|email| (name, email)))
-    {
-        write!(&mut manifest, "\nauthor = \"{} <{}>\"", name, email).unwrap();
-    }
-
-    manifest.push(b'\n');
-
-    create_dir(&path).map_err(|_| fs::Error::Write)?;
-    create_dir(path.join("content")).map_err(|_| fs::Error::Write)?;
-    create_dir(path.join("static")).map_err(|_| fs::Error::Write)?;
-
-    write(path.join("stuart.toml"), manifest).map_err(|_| fs::Error::Write)?;
-    write(
-        path.join("content/index.html"),
-        include_bytes!("../default_project/index.html"),
-    )
-    .map_err(|_| fs::Error::Write)?;
-    write(
-        path.join("content/root.html"),
-        include_bytes!("../default_project/root.html"),
-    )
-    .map_err(|_| fs::Error::Write)?;
-    write(
-        path.join("static/ferris.svg"),
-        include_bytes!("../default_project/ferris.svg"),
-    )
-    .map_err(|_| fs::Error::Write)?;
-
-    if !no_git {
-        config::git::init_repository(&format!("./{}", name));
-    }
-
-    log!("Created", "new Stuart website `{}`", name);
 
     Ok(())
 }
