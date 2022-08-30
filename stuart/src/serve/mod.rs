@@ -79,7 +79,10 @@ fn build_watcher(
             log!(
                 "Detected",
                 "change at {}, rebuilding",
-                e.path.unwrap().display()
+                e.path
+                    .unwrap()
+                    .to_string_lossy()
+                    .trim_start_matches("\\\\?\\")
             );
 
             if let Err(e) = crate::build::build(&manifest_path, &output) {
