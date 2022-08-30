@@ -128,34 +128,7 @@ impl Stuart {
                     source: source.clone(),
                 })
             }
-            Node::File {
-                name,
-                contents,
-                source,
-                parsed_contents,
-            } => {
-                if name != "root.html" && name != "md.html" {
-                    let (new_contents, new_name) = node.process(self, specials)?;
-
-                    Ok(OutputNode::File {
-                        name: new_name.unwrap_or_else(|| name.clone()),
-                        contents: new_contents.unwrap_or_else(|| contents.clone()),
-                        source: source.clone(),
-                        json: if self.config.save_metadata {
-                            parsed_contents.to_json()
-                        } else {
-                            None
-                        },
-                    })
-                } else {
-                    Ok(OutputNode::File {
-                        name: name.clone(),
-                        contents: contents.clone(),
-                        source: source.clone(),
-                        json: None,
-                    })
-                }
-            }
+            Node::File { .. } => node.process(self, specials),
         }
     }
 }

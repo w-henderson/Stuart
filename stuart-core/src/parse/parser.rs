@@ -34,6 +34,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> Result<char, TracebackError<ParseError>> {
         if let Some(c) = self.chars.next() {
             self.line = self.next_line;

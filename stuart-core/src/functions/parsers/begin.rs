@@ -9,6 +9,7 @@ pub struct BeginParser;
 #[derive(Debug, Clone)]
 pub struct BeginFunction {
     label: String,
+    #[allow(dead_code)]
     custom: bool,
 }
 

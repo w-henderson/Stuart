@@ -52,14 +52,13 @@ impl Function for DateFormatFunction {
             self_token.traceback(ProcessError::UndefinedVariable(self.variable_name.clone()))
         })?;
 
-        let string =
-            variable
-                .as_str()
-                .ok_or(self_token.traceback(ProcessError::InvalidDataType {
-                    variable: self.variable_name.clone(),
-                    expected: "string".to_string(),
-                    found: String::new(),
-                }))?;
+        let string = variable.as_str().ok_or_else(|| {
+            self_token.traceback(ProcessError::InvalidDataType {
+                variable: self.variable_name.clone(),
+                expected: "string".to_string(),
+                found: String::new(),
+            })
+        })?;
 
         let date = std::panic::catch_unwind(|| {
             parse_with(string, &Local, NaiveTime::from_hms(0, 0, 0))

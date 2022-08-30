@@ -10,7 +10,7 @@ use self::stack::StackFrame;
 
 use crate::fs::{Node, ParsedContents};
 use crate::parse::{LocatableToken, ParsedMarkdown, Token};
-use crate::{SpecialFiles, Stuart};
+use crate::{OutputNode, SpecialFiles, Stuart};
 
 use humphrey_json::Value;
 
@@ -21,19 +21,38 @@ pub struct Scope<'a> {
     pub sections: &'a mut Vec<(String, Vec<u8>)>,
 }
 
+type NodeModifications = (Option<Vec<u8>>, Option<String>);
+
 impl Node {
     pub fn process(
         &self,
         processor: &Stuart,
         special_files: SpecialFiles,
-    ) -> Result<(Option<Vec<u8>>, Option<String>), TracebackError<ProcessError>> {
-        Ok(match self.parsed_contents() {
-            ParsedContents::Html(tokens) => (
-                Some(self.process_html(tokens, processor, special_files)?),
-                None,
-            ),
-            ParsedContents::Markdown(md) => self.process_markdown(md, processor, special_files)?,
-            _ => (None, None),
+    ) -> Result<OutputNode, TracebackError<ProcessError>> {
+        let (new_contents, new_name) = if self.name() != "root.html" && self.name() != "md.html" {
+            match self.parsed_contents() {
+                ParsedContents::Html(tokens) => (
+                    Some(self.process_html(tokens, processor, special_files)?),
+                    None,
+                ),
+                ParsedContents::Markdown(md) => {
+                    self.process_markdown(md, processor, special_files)?
+                }
+                _ => (None, None),
+            }
+        } else {
+            (None, None)
+        };
+
+        Ok(OutputNode::File {
+            name: new_name.unwrap_or_else(|| self.name().to_string()),
+            contents: new_contents.unwrap_or_else(|| self.contents().unwrap().to_vec()),
+            source: self.source().to_path_buf(),
+            json: if processor.config.save_metadata {
+                self.parsed_contents().to_json()
+            } else {
+                None
+            },
         })
     }
 
@@ -95,7 +114,7 @@ impl Node {
         md: &ParsedMarkdown,
         processor: &Stuart,
         special_files: SpecialFiles,
-    ) -> Result<(Option<Vec<u8>>, Option<String>), TracebackError<ProcessError>> {
+    ) -> Result<NodeModifications, TracebackError<ProcessError>> {
         let root = special_files.root.ok_or(TracebackError {
             path: self.source().to_path_buf(),
             line: 0,
@@ -110,7 +129,7 @@ impl Node {
             kind: ProcessError::MissingMarkdownRoot,
         })?;
 
-        let mut token_iter = TokenIter::new(&md_tokens);
+        let mut token_iter = TokenIter::new(md_tokens);
         let mut stack: Vec<StackFrame> = vec![{
             let mut frame = StackFrame::new("base");
             frame.add_variable("self", md.to_value());
