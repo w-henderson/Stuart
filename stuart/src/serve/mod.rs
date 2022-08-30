@@ -37,6 +37,8 @@ pub fn serve(args: ArgMatches) -> Result<(), Box<dyn StuartError>> {
         .and_then(|p| p.parent().map(|p| p.to_path_buf()))
         .ok_or("invalid manifest path")?;
 
+    log!("Started", "development server at http://localhost:6904\n");
+
     if let Err(e) = crate::build::build(&manifest_path, &output) {
         error_handler(&e);
     }
