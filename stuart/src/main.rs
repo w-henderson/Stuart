@@ -16,6 +16,7 @@ use stuart_core::fs;
 use std::fs::{create_dir, write};
 use std::io::Write;
 use std::path::PathBuf;
+use std::sync::atomic::Ordering;
 
 fn main() {
     let matches = App::new("Stuart")
@@ -79,6 +80,18 @@ fn main() {
                         .help("Don't initialize a Git repository"),
                 ),
         )
+        .subcommand(
+            Command::new("bench")
+                .about("Performs a basic benchmark test")
+                .arg(
+                    Arg::new("iterations")
+                        .short('i')
+                        .long("iters")
+                        .help("Number of iterations to perform")
+                        .takes_value(true)
+                        .default_value("10"),
+                ),
+        )
         .subcommand_required(true)
         .get_matches();
 
@@ -97,6 +110,7 @@ fn main() {
         Some(("build", args)) => build(args),
         Some(("dev", args)) => serve::serve(args.clone()),
         Some(("new", args)) => new(args),
+        Some(("bench", args)) => bench(args),
         _ => unreachable!(),
     };
 
@@ -114,7 +128,45 @@ fn build(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
     let manifest_path: &str = args.value_of("manifest-path").unwrap();
     let output: &str = args.value_of("output").unwrap();
 
-    build::build(manifest_path, output)
+    build::build(manifest_path, output).map(|_| ())
+}
+
+fn bench(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
+    let iters: usize = args
+        .value_of("iterations")
+        .unwrap()
+        .parse()
+        .map_err(|_| "invalid value for iterations")?;
+
+    let mut total = 0.0;
+    let mut total_build = 0.0;
+    let mut total_scripts = 0.0;
+    let mut total_fs = 0.0;
+
+    LOGGER.get().unwrap().enabled.store(false, Ordering::SeqCst);
+
+    for i in 1..=iters {
+        let result = build::build("../benchmark/stuart.toml", "../benchmark/dist")?;
+
+        total += result.total_duration;
+        total_build += result.build_duration;
+        total_scripts += result.scripts_duration;
+        total_fs += result.fs_duration;
+    }
+
+    LOGGER.get().unwrap().enabled.store(true, Ordering::SeqCst);
+
+    let avg = total / (iters as f64);
+    let avg_build = total_build / (iters as f64);
+    let avg_scripts = total_scripts / (iters as f64);
+    let avg_fs = total_fs / (iters as f64);
+
+    log!("Total:", "{:.2}ms mean", avg);
+    log!("Build:", "{:.2}ms mean", avg_build);
+    log!("Scripts:", "{:.2}ms mean", avg_scripts);
+    log!("Filesystem:", "{:.2}ms mean", avg_fs);
+
+    Ok(())
 }
 
 fn new(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {

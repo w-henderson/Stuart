@@ -8,7 +8,14 @@ use std::fs::{read_to_string, remove_dir_all};
 use std::path::PathBuf;
 use std::time::Instant;
 
-pub fn build(manifest_path: &str, output: &str) -> Result<(), Box<dyn StuartError>> {
+pub struct BuildInfo {
+    pub total_duration: f64,
+    pub build_duration: f64,
+    pub scripts_duration: f64,
+    pub fs_duration: f64,
+}
+
+pub fn build(manifest_path: &str, output: &str) -> Result<BuildInfo, Box<dyn StuartError>> {
     let path = PathBuf::try_from(&manifest_path)
         .ok()
         .and_then(|path| path.canonicalize().ok())
@@ -89,5 +96,10 @@ pub fn build(manifest_path: &str, output: &str) -> Result<(), Box<dyn StuartErro
         fs_duration
     );
 
-    Ok(())
+    Ok(BuildInfo {
+        total_duration,
+        build_duration,
+        scripts_duration,
+        fs_duration,
+    })
 }

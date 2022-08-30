@@ -6,6 +6,7 @@ pub static LOGGER: OnceCell<Logger> = OnceCell::new();
 #[derive(Debug)]
 pub struct Logger {
     pub level: LogLevel,
+    pub enabled: AtomicBool,
     pub has_logged: AtomicBool,
 }
 
@@ -20,6 +21,7 @@ impl Logger {
     pub fn new(level: LogLevel) -> Self {
         Self {
             level,
+            enabled: AtomicBool::new(true),
             has_logged: AtomicBool::new(false),
         }
     }
@@ -37,7 +39,8 @@ impl Logger {
 macro_rules! log {
     ($verb:expr, $($arg:tt)*) => {
         if let Some(logger) = $crate::logger::LOGGER.get() {
-            if logger.level != $crate::logger::LogLevel::Quiet {
+            if logger.enabled.load(::std::sync::atomic::Ordering::Relaxed)
+                && logger.level != $crate::logger::LogLevel::Quiet {
                 use ::termcolor::*;
                 use std::io::Write;
 
