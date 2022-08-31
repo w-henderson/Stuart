@@ -1,3 +1,8 @@
+//! Stuart: A Blazingly-Fast Static Site Generator.
+
+#![warn(missing_docs)]
+#![warn(clippy::missing_docs_in_private_items)]
+
 #[macro_use]
 mod logger;
 
@@ -121,6 +126,7 @@ fn main() {
     }
 }
 
+/// Runs the build command with the given arguments.
 fn build(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
     let manifest_path: &str = args.value_of("manifest-path").unwrap();
     let output: &str = args.value_of("output").unwrap();
@@ -128,6 +134,7 @@ fn build(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
     build::build(manifest_path, output).map(|_| ())
 }
 
+/// Runs the benchmark command with the given arguments.
 fn bench(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
     let iters: usize = args
         .value_of("iterations")

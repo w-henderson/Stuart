@@ -1,13 +1,20 @@
+//! Provides the progress bar logging functionality.
+
 use std::io::Write;
 use termcolor::{BufferWriter, Color, ColorChoice, ColorSpec, WriteColor};
 
+/// Represents a progress bar.
 pub struct Progress {
+    /// The name of the operation being performed. For example, "Building".
     name: String,
+    /// The total number of steps in the operation.
     total: usize,
+    /// The current step.
     current: usize,
 }
 
 impl Progress {
+    /// Creates a new progress bar.
     pub fn new(name: impl AsRef<str>, total: usize) -> Self {
         Self {
             name: name.as_ref().to_string(),
@@ -16,6 +23,7 @@ impl Progress {
         }
     }
 
+    /// Prints the current state of the progress bar.
     pub fn print(&self) {
         let writer = BufferWriter::stderr(ColorChoice::Always);
         let mut buffer = writer.buffer();

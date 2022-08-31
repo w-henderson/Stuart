@@ -1,3 +1,5 @@
+//! Provides the `stuart build` functionality.
+
 use crate::config;
 use crate::error::StuartError;
 use crate::scripts::Scripts;
@@ -8,13 +10,19 @@ use std::fs::{read_to_string, remove_dir_all};
 use std::path::PathBuf;
 use std::time::Instant;
 
+/// Contains information about a successful build.
 pub struct BuildInfo {
+    /// The total time taken to build the site, in milliseconds.
     pub total_duration: f64,
+    /// The time taken to build the site's content, in milliseconds.
     pub build_duration: f64,
+    /// The time taken to execute all build scripts, in milliseconds.
     pub scripts_duration: f64,
+    /// The time taken to write the site to disk, in milliseconds.
     pub fs_duration: f64,
 }
 
+/// Builds the site with the given configuration.
 pub fn build(manifest_path: &str, output: &str) -> Result<BuildInfo, Box<dyn StuartError>> {
     let path = PathBuf::try_from(&manifest_path)
         .ok()

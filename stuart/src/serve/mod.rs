@@ -1,3 +1,5 @@
+//! Provides the `stuart dev` functionality.
+
 use crate::error::StuartError;
 use crate::logger::LOGGER;
 
@@ -21,13 +23,17 @@ use std::sync::mpsc::{channel, Receiver};
 use std::sync::{Arc, Mutex};
 use std::thread::spawn;
 
+/// The WebSocket-based JavaScript to inject into HTML pages, allowing for hot reload.
 static JS: &[u8] = include_bytes!("main.js");
 
+/// The state of the Humphrey application used to serve the site.
 #[derive(Default)]
 struct State {
+    /// Connected WebSocket streams to broadcast updates to.
     streams: Arc<Mutex<Vec<WebsocketStream>>>,
 }
 
+/// Serves the site with the given arguments.
 pub fn serve(args: ArgMatches) -> Result<(), Box<dyn StuartError>> {
     let manifest_path: String = args.value_of("manifest-path").unwrap().to_string();
     let output: String = args.value_of("output").unwrap().to_string();
@@ -61,6 +67,7 @@ pub fn serve(args: ArgMatches) -> Result<(), Box<dyn StuartError>> {
         .map_err(|_| Box::new("failed to start development server") as Box<dyn StuartError>)
 }
 
+/// Watches for changes to the site, rebuilding and notifying subscribers when necessary.
 fn build_watcher(
     rx: Receiver<RawEvent>,
     streams: Arc<Mutex<Vec<WebsocketStream>>>,
@@ -112,14 +119,16 @@ fn build_watcher(
     }
 }
 
+/// Handles WebSocket connections to the Humphrey server.
 fn websocket_handler(request: Request, stream: Stream, state: Arc<State>) {
     humphrey_ws::websocket_handler(|stream, state: Arc<State>| {
         state.streams.lock().unwrap().push(stream)
     })(request, stream, state);
 }
 
-// Taken from Humphrey and modified to correctly inject the WebSocket code.
-// https://github.com/w-henderson/Humphrey/blob/8bf07aada8acb7e25991ac9e9f9462d9fb3086b0/humphrey/src/handlers.rs#L78
+/// Serves a directory.
+///
+/// Taken from Humphrey ([permalink](https://github.com/w-henderson/Humphrey/blob/8bf07aada8acb7e25991ac9e9f9462d9fb3086b0/humphrey/src/handlers.rs#L78)) and modified to correctly inject the WebSocket code.
 fn serve_dir(request: Request) -> Response {
     let uri_without_route = request.uri.strip_prefix('/').unwrap_or(&request.uri);
 
@@ -162,6 +171,7 @@ fn serve_dir(request: Request) -> Response {
     }
 }
 
+/// Prints errors.
 #[allow(clippy::borrowed_box)]
 fn error_handler(e: &Box<dyn StuartError>) {
     if LOGGER.get().unwrap().has_logged() {

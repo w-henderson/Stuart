@@ -1,3 +1,5 @@
+//! Provides the [`StuartError`] trait, which enables advanced error messages.
+
 use crate::scripts::ScriptError;
 
 use stuart_core::parse::ParseError;
@@ -11,13 +13,32 @@ use std::fmt::Debug;
 use std::fs::read_to_string;
 use std::io::Write;
 
+/// A trait which is implemented for all errors that can occur during the execution of the program.
+///
+/// Through this trait, errors can be formatted in a useful way, inspired by that of Rust's compiler.
+///
+/// An example error message would look like this (with colours):
+///
+/// ```text
+/// error: positional argument after named argument
+///   --> content\index.html:124:38
+///     |
+/// 124 |           {{ for($tag, order="asc", $project.tags) }}
+///     |                                     ^^^ error occurred here
+///     |
+///     = help: place positional arguments before named arguments
+/// ```
 pub trait StuartError {
+    /// Displays the error into the buffer.
     fn display(&self, buf: &mut Buffer);
 
+    /// Returns help text.
     fn help(&self) -> Option<String> {
         None
     }
 
+    /// Prints the error to the console.
+    /// This should not be implemented manually.
     fn print(&self) {
         let writer = BufferWriter::stderr(ColorChoice::Always);
         let mut buffer = writer.buffer();
@@ -309,8 +330,18 @@ impl StuartError for ScriptError {
             ScriptError::CouldNotExecute(script) => {
                 format!("could not execute script `{}`", script).display(buf)
             }
-            ScriptError::ScriptFailure(script, code, stdout, stderr) => {
-                writeln!(buf, "script `{}` failed with exit code {}", script, code).unwrap();
+            ScriptError::ScriptFailure {
+                script,
+                exit_code,
+                stdout,
+                stderr,
+            } => {
+                writeln!(
+                    buf,
+                    "script `{}` failed with exit code {}",
+                    script, exit_code
+                )
+                .unwrap();
 
                 if !stdout.is_empty() {
                     buf.set_color(ColorSpec::new().set_fg(Some(Color::Red)).set_intense(true))

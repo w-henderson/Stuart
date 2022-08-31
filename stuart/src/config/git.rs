@@ -1,5 +1,10 @@
+//! Provides functionality for interfacing with Git.
+//!
+//! This is used to get user information for the `author` field, as well as initialising new Git repositories.
+
 use std::process::Command;
 
+/// Gets the user's name from Git.
 pub fn get_user_name() -> Option<String> {
     let output = Command::new("git")
         .args(&["config", "--get", "user.name"])
@@ -13,6 +18,7 @@ pub fn get_user_name() -> Option<String> {
     }
 }
 
+/// Gets the user's email from Git.
 pub fn get_user_email() -> Option<String> {
     let output = Command::new("git")
         .args(&["config", "--get", "user.email"])
@@ -26,6 +32,7 @@ pub fn get_user_email() -> Option<String> {
     }
 }
 
+/// Initialises a new Git repository in the given directory.
 pub fn init_repository(path: &str) -> bool {
     Command::new("git")
         .arg("init")

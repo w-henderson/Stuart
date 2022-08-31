@@ -1,3 +1,5 @@
+//! Provides the `stuart new` functionality.
+
 use crate::config::git;
 use crate::error::StuartError;
 
@@ -10,8 +12,10 @@ use std::fs::{create_dir, write};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
+/// The directory containing the default site template, built into the binary when compiled.
 static DEFAULT_PROJECT: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../example");
 
+/// Creates a new site with the given arguments.
 pub fn new(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
     let name = args.value_of("name").unwrap();
     let path = PathBuf::try_from(name).map_err(|_| fs::Error::Write)?;
@@ -43,6 +47,7 @@ pub fn new(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
     Ok(())
 }
 
+/// Extracts the embedded directory to the filesystem.
 fn extract(root: &Path, dir: &Dir) -> Result<(), fs::Error> {
     for child in dir.entries() {
         match child {
