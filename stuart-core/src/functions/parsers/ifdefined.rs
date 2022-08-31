@@ -6,6 +6,7 @@ use crate::{quiet_assert, TracebackError};
 
 use humphrey_json::Value;
 
+/// Parses the `ifdefined` function.
 pub struct IfDefinedParser;
 
 #[derive(Debug, Clone)]

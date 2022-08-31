@@ -6,6 +6,7 @@ use crate::{quiet_assert, TracebackError};
 
 use std::path::PathBuf;
 
+/// Parses the `import` function.
 pub struct ImportParser;
 
 #[derive(Debug, Clone)]

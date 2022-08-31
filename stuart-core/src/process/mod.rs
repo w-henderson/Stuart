@@ -1,3 +1,5 @@
+//! Provides processing functionality.
+
 pub mod error;
 pub mod iter;
 pub mod stack;
@@ -14,16 +16,35 @@ use crate::{OutputNode, SpecialFiles, Stuart};
 
 use humphrey_json::Value;
 
+/// Represents the scope of a function execution.
 pub struct Scope<'a> {
+    /// The token iterator.
+    ///
+    /// This allows functions to consume more tokens if necessary, as well as peek at their own token.
+    /// For example, the `for` function continues consuming tokens until it reaches `end(for)`.
     pub tokens: &'a mut TokenIter<'a>,
+
+    /// The call stack.
+    ///
+    /// This allows functions to execute other functions, and to control the scope of their variables.
+    /// For example, the `for` function's iteration variable is dropped when the function exits.
     pub stack: &'a mut Vec<StackFrame>,
+
+    /// The Stuart instance that is processing the build.
     pub processor: &'a Stuart,
+
+    /// The sections of the file.
+    ///
+    /// These are started with `begin("section name")` and ended with `end("section name")`.
+    /// This should not be manipulated by custom functions.
     pub sections: &'a mut Vec<(String, Vec<u8>)>,
 }
 
+/// A tuple of a new body and a new name for a file.
 type NodeModifications = (Option<Vec<u8>>, Option<String>);
 
 impl Node {
+    /// Processes a node, returning an output node.
     pub fn process(
         &self,
         processor: &Stuart,
@@ -56,6 +77,7 @@ impl Node {
         })
     }
 
+    /// Processes an HTML node, returning the processed output.
     fn process_html(
         &self,
         tokens: &[LocatableToken],
@@ -109,6 +131,7 @@ impl Node {
         Ok(stack.pop().unwrap().output)
     }
 
+    /// Processes a markdown node, returning the processed output.
     fn process_markdown(
         &self,
         md: &ParsedMarkdown,
@@ -177,6 +200,7 @@ impl Node {
 }
 
 impl LocatableToken {
+    /// Processes a token, updating the scope.
     pub fn process(&self, scope: &mut Scope) -> Result<(), TracebackError<ProcessError>> {
         match &self.inner {
             Token::Raw(raw) => scope
@@ -200,6 +224,14 @@ impl LocatableToken {
                         .get_variable(variable_name)
                         .map(|v| stack::get_value(&variable_indexes, v))
                     {
+                        let e = |found: &str| {
+                            Err(ProcessError::InvalidDataType {
+                                variable: variable.to_string(),
+                                expected: "string".to_string(),
+                                found: found.to_string(),
+                            })
+                        };
+
                         match value {
                             Value::String(s) => {
                                 string = Some(s);
@@ -207,26 +239,10 @@ impl LocatableToken {
                             }
 
                             Value::Null => Err(ProcessError::NullError(variable.to_string())),
-                            Value::Bool(_) => Err(ProcessError::InvalidDataType {
-                                variable: variable.to_string(),
-                                expected: "string".to_string(),
-                                found: "bool".to_string(),
-                            }),
-                            Value::Number(_) => Err(ProcessError::InvalidDataType {
-                                variable: variable.to_string(),
-                                expected: "string".to_string(),
-                                found: "number".to_string(),
-                            }),
-                            Value::Array(_) => Err(ProcessError::InvalidDataType {
-                                variable: variable.to_string(),
-                                expected: "string".to_string(),
-                                found: "array".to_string(),
-                            }),
-                            Value::Object(_) => Err(ProcessError::InvalidDataType {
-                                variable: variable.to_string(),
-                                expected: "string".to_string(),
-                                found: "object".to_string(),
-                            }),
+                            Value::Bool(_) => e("bool"),
+                            Value::Number(_) => e("number"),
+                            Value::Array(_) => e("array"),
+                            Value::Object(_) => e("object"),
                         }
                         .map_err(|e| self.traceback(e))?;
                     }
@@ -252,6 +268,7 @@ impl LocatableToken {
 }
 
 impl<'a> Scope<'a> {
+    /// Gets a variable from the scope by looking down the stack.
     pub fn get_variable(&self, name: &str) -> Option<Value> {
         let mut variable_iter = name.split('.');
         let variable_name = variable_iter.next().unwrap();
@@ -272,6 +289,7 @@ impl<'a> Scope<'a> {
         variable
     }
 
+    /// Adds to the output of the current stack frame.
     pub fn output(&mut self, output: impl AsRef<[u8]>) -> Result<(), ProcessError> {
         self.stack
             .last_mut()

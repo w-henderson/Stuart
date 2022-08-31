@@ -1,20 +1,36 @@
+//! Provides functionality for parsing raw functions and arguments.
+
 use crate::functions::is_ident;
 use crate::parse::ParseError;
 
+/// Represents a raw function.
+///
+/// A raw function is the result of the first stage of parsing a function. It contains the parsed name of the function,
+///   as well as its positional arguments and named arguments as [`RawArgument`]s. The raw function is then further
+///   processed into an executable function using the [`FunctionParser`] trait.
 pub struct RawFunction {
-    pub(crate) name: String,
-    pub(crate) positional_args: Vec<RawArgument>,
-    pub(crate) named_args: Vec<(String, RawArgument)>,
+    /// The name of the function.
+    pub name: String,
+    /// The positional arguments of the function, in order.
+    pub positional_args: Vec<RawArgument>,
+    /// The named arguments of the function, in order.
+    pub named_args: Vec<(String, RawArgument)>,
 }
 
+/// Represents a raw argument.
 pub enum RawArgument {
+    /// A variable name.
     Variable(String),
+    /// A string literal.
     String(String),
+    /// An identifier, such as a function name.
     Ident(String),
+    /// A number literal. (floats are not yet supported)
     Integer(i32),
 }
 
 impl RawArgument {
+    /// Attempts to parse a string into a raw argument.
     pub fn parse(arg: &str) -> Result<RawArgument, ParseError> {
         if arg.starts_with('$') {
             // Parse a positional variable argument.
@@ -54,6 +70,7 @@ impl RawArgument {
         }
     }
 
+    /// Returns the argument as a variable name, if it is a variable.
     pub fn as_variable(&self) -> Option<&str> {
         match self {
             Self::Variable(variable_name) => Some(variable_name),
@@ -61,6 +78,7 @@ impl RawArgument {
         }
     }
 
+    /// Returns the argument as a string, if it is a string.
     pub fn as_string(&self) -> Option<&str> {
         match self {
             Self::String(string) => Some(string),
@@ -68,6 +86,7 @@ impl RawArgument {
         }
     }
 
+    /// Returns the argument as an identifier, if it is an identifier.
     pub fn as_ident(&self) -> Option<&str> {
         match self {
             Self::Ident(ident) => Some(ident),
@@ -75,6 +94,7 @@ impl RawArgument {
         }
     }
 
+    /// Returns the argument as an integer, if it is an integer.
     pub fn as_integer(&self) -> Option<i32> {
         match self {
             Self::Integer(int) => Some(*int),

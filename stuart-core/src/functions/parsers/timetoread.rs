@@ -5,6 +5,7 @@ use crate::{quiet_assert, TracebackError};
 
 static WORDS_PER_MINUTE: usize = 200;
 
+/// Parses the `timetoread` function.
 pub struct TimeToReadParser;
 
 #[derive(Debug, Clone)]

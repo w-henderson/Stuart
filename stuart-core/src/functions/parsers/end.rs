@@ -3,6 +3,7 @@ use crate::parse::{ParseError, RawArgument, RawFunction};
 use crate::process::{ProcessError, Scope};
 use crate::{quiet_assert, TracebackError};
 
+/// Parses the `end` function.
 pub struct EndParser;
 
 #[derive(Debug, Clone)]

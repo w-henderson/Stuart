@@ -4,6 +4,7 @@ use crate::process::stack::StackFrame;
 use crate::process::{ProcessError, Scope};
 use crate::{quiet_assert, TracebackError};
 
+/// Parses the `begin` function.
 pub struct BeginParser;
 
 #[derive(Debug, Clone)]

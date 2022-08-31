@@ -1,3 +1,5 @@
+//! Provides parsing functionality.
+
 mod error;
 mod function;
 mod markdown;
@@ -15,22 +17,32 @@ use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
+/// Encapsulates a token and its location in a file.
 #[derive(Clone, Debug)]
 pub struct LocatableToken {
+    /// The token.
     pub inner: Token,
+    /// The path of the file from which the token was parsed.
     pub path: PathBuf,
+    /// The line number of the token.
     pub line: u32,
+    /// The column number of the token.
     pub column: u32,
 }
 
+/// Represents a token to parse.
 #[derive(Clone, Debug)]
 pub enum Token {
+    /// Raw HTML to be inserted into the output without further processing.
     Raw(String),
+    /// A function, the output of which is inserted into the output.
     Function(Rc<Box<dyn Function>>),
+    /// A variable, the value of which is inserted into the output.
     Variable(String),
 }
 
 impl LocatableToken {
+    /// Generate a traceback error for this locatable token.
     pub fn traceback<T: Clone + Debug>(&self, e: T) -> TracebackError<T> {
         TracebackError {
             path: self.path.clone(),
@@ -50,6 +62,7 @@ impl Deref for LocatableToken {
 }
 
 impl Token {
+    /// Returns the raw HTML of this token, if it is a `Raw` token.
     pub fn as_raw(&self) -> Option<&str> {
         match self {
             Token::Raw(s) => Some(s.as_str()),
@@ -57,6 +70,7 @@ impl Token {
         }
     }
 
+    /// Returns the function of this token, if it is a `Function` token.
     pub fn as_function(&self) -> Option<Rc<Box<dyn Function>>> {
         match self {
             Token::Function(f) => Some(f.clone()),
@@ -64,6 +78,7 @@ impl Token {
         }
     }
 
+    /// Returns the variable of this token, if it is a `Variable` token.
     pub fn as_variable(&self) -> Option<&str> {
         match self {
             Token::Variable(s) => Some(s.as_str()),
@@ -72,6 +87,7 @@ impl Token {
     }
 }
 
+/// Attempts to parse a file at the given path into a list of tokens.
 pub fn parse(input: &str, path: &Path) -> Result<Vec<LocatableToken>, TracebackError<ParseError>> {
     let chars = input.chars();
     let mut parser = Parser::new(chars, path);
@@ -125,6 +141,7 @@ pub fn parse(input: &str, path: &Path) -> Result<Vec<LocatableToken>, TracebackE
     Ok(tokens)
 }
 
+/// Attempts to parse a variable token from the parser.
 fn parse_variable(parser: &mut Parser) -> Result<Token, TracebackError<ParseError>> {
     parser.expect("$")?;
 
@@ -137,6 +154,7 @@ fn parse_variable(parser: &mut Parser) -> Result<Token, TracebackError<ParseErro
     Ok(Token::Variable(variable_name))
 }
 
+/// Attempts to parse a function token from the parser.
 fn parse_function(parser: &mut Parser) -> Result<Token, TracebackError<ParseError>> {
     let (line, column) = parser.location();
     let function_name = parser.extract_while(|c| c.is_alphanumeric() || c == '_');

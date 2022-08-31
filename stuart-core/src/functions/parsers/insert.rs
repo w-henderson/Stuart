@@ -3,6 +3,7 @@ use crate::parse::{ParseError, RawFunction};
 use crate::process::{ProcessError, Scope};
 use crate::{quiet_assert, TracebackError};
 
+/// Parses the `insert` function.
 pub struct InsertParser;
 
 #[derive(Debug, Clone)]

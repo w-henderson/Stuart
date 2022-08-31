@@ -9,6 +9,7 @@ use humphrey_json::Value;
 
 use std::path::PathBuf;
 
+/// Parses the `for` function.
 pub struct ForParser;
 
 #[derive(Debug, Clone)]

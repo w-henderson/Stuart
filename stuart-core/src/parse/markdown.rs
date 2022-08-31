@@ -1,3 +1,5 @@
+//! Provides functionality for parsing markdown files.
+
 use super::{ParseError, TracebackError};
 
 use humphrey_json::Value;
@@ -5,12 +7,16 @@ use pulldown_cmark::{html, Options, Parser};
 
 use std::path::Path;
 
+/// Represents the parsed contents of a markdown file.
 #[derive(Clone, Debug)]
 pub struct ParsedMarkdown {
+    /// The frontmatter of the file.
     frontmatter: Vec<(String, String)>,
+    /// The body of the file, parsed into HTML.
     body: String,
 }
 
+/// Attempts to parse a markdown file into a [`ParsedMarkdown`] struct.
 pub fn parse_markdown(
     input: String,
     path: &Path,
@@ -33,36 +39,24 @@ pub fn parse_markdown(
                 continue;
             }
 
+            let e = || TracebackError {
+                path: path.to_path_buf(),
+                line: i as u32 + 1,
+                column: 0,
+                kind: ParseError::InvalidFrontmatter,
+            };
+
             if dashed_lines == 1 {
                 let mut parts = line.split(':');
-                let key = parts
-                    .next()
-                    .ok_or(TracebackError {
-                        path: path.to_path_buf(),
-                        line: i as u32 + 1,
-                        column: 0,
-                        kind: ParseError::InvalidFrontmatter,
-                    })?
-                    .trim()
-                    .to_string();
+                let key = parts.next().ok_or_else(e)?.trim().to_string();
 
                 let value = parts
                     .next()
-                    .ok_or(TracebackError {
-                        path: path.to_path_buf(),
-                        line: i as u32 + 1,
-                        column: 0,
-                        kind: ParseError::InvalidFrontmatter,
-                    })?
+                    .ok_or_else(e)?
                     .trim()
                     .strip_prefix('"')
                     .and_then(|v| v.strip_suffix('"'))
-                    .ok_or(TracebackError {
-                        path: path.to_path_buf(),
-                        kind: ParseError::InvalidFrontmatter,
-                        line: i as u32 + 1,
-                        column: 0,
-                    })?
+                    .ok_or_else(e)?
                     .to_string();
 
                 frontmatter.push((key, value));
@@ -97,13 +91,18 @@ pub fn parse_markdown(
 }
 
 impl ParsedMarkdown {
+    /// Converts the parsed markdown into a full JSON object for use by the Stuart program.
+    ///
+    /// **Warning:** this function also returns the body of the file as an HTML string. This can be very large, so if the contents
+    ///   is not required, consider using [`ParsedMarkdown::to_json`], which does the same thing without returning the contents.
     pub fn to_value(&self) -> Value {
-        let mut v = self.to_json();
+        let mut v = self.frontmatter_to_value();
         v["content"] = Value::String(self.body.clone());
         v
     }
 
-    pub fn to_json(&self) -> Value {
+    /// Converts the markdown frontmatter into a JSON object.
+    pub fn frontmatter_to_value(&self) -> Value {
         let children = self
             .frontmatter
             .iter()

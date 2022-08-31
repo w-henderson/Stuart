@@ -1,3 +1,5 @@
+//! Provides a virtual filesystem tree which saves its files according to the configuration.
+
 use crate::config::Config;
 use crate::fs::Error;
 
@@ -8,22 +10,36 @@ use std::fs::{create_dir, read, read_dir, remove_dir_all, write};
 use std::io::ErrorKind;
 use std::path::{Component, Path, PathBuf};
 
+/// Represents an output node in the virtual filesystem tree.
 #[derive(Clone, Debug)]
 pub enum OutputNode {
+    /// A file in the virtual filesystem tree.
     File {
+        /// The name of the file.
         name: String,
+        /// The contents of the file.
         contents: Vec<u8>,
+        /// The filesystem source of the file.
         source: PathBuf,
+        /// The JSON metadata of the file, if enabled and available.
         json: Option<Value>,
     },
+    /// A directory in the virtual filesystem tree.
     Directory {
+        /// The name of the directory.
         name: String,
+        /// The children of the directory.
         children: Vec<OutputNode>,
+        /// The filesystem source of the directory.
         source: PathBuf,
     },
 }
 
 impl OutputNode {
+    /// Constructs a new output node from the filesystem source.
+    /// This is used when merging static content into the virtual filesystem tree.
+    ///
+    /// **Note:** this does not parse the file.
     pub fn new(root: impl AsRef<Path>) -> Result<Self, Error> {
         let root = root
             .as_ref()
@@ -34,6 +50,7 @@ impl OutputNode {
         Self::create_from_dir(root)
     }
 
+    /// Save the output node to the filesystem with the given configuration.
     pub fn save(&self, path: impl AsRef<Path>, config: &Config) -> Result<(), Error> {
         let path = path.as_ref().to_path_buf();
 
@@ -55,6 +72,8 @@ impl OutputNode {
         Ok(())
     }
 
+    /// Save the output node's metadata to the given path.
+    /// The `base` argument should be a JSON object to which the metadata will be added under the key `data`.
     pub fn save_metadata(&self, mut base: Value, path: impl AsRef<Path>) -> Result<(), Error> {
         base["data"] = self.save_metadata_recur(true);
 
@@ -63,6 +82,8 @@ impl OutputNode {
         Ok(())
     }
 
+    /// Merge two virtual filesystem trees into a single virtual filesystem tree.
+    /// This will return an error if two files share the same path.
     pub fn merge(&mut self, other: OutputNode) -> Result<(), Error> {
         match (self, other) {
             (
@@ -100,6 +121,7 @@ impl OutputNode {
         }
     }
 
+    /// Attempts to get the output node at the given path.
     pub fn get_at_path(&self, path: &Path) -> Option<&Self> {
         let mut working_path = vec![self];
 
@@ -121,6 +143,7 @@ impl OutputNode {
         working_path.last().copied()
     }
 
+    /// Returns the name of the output node.
     pub fn name(&self) -> &str {
         match self {
             Self::File { name, .. } => name,
@@ -128,6 +151,7 @@ impl OutputNode {
         }
     }
 
+    /// Returns the filesystem source of the output node.
     pub fn source(&self) -> &Path {
         match self {
             Self::File { source, .. } => source,
@@ -135,6 +159,7 @@ impl OutputNode {
         }
     }
 
+    /// Returns the children of the output node.
     pub fn children(&self) -> Option<&[Self]> {
         match self {
             Self::Directory { children, .. } => Some(children),
@@ -142,6 +167,7 @@ impl OutputNode {
         }
     }
 
+    /// Recursively saves this node and its descendants to the filesystem.
     fn save_recur(&self, path: impl AsRef<Path>, config: &Config) -> Result<(), Error> {
         let path = path.as_ref().to_path_buf();
 
@@ -186,6 +212,7 @@ impl OutputNode {
         Ok(())
     }
 
+    /// Recursively exports this node's and its descendants' metadata to a JSON object.
     fn save_metadata_recur(&self, is_first: bool) -> Value {
         match self {
             Self::Directory { name, children, .. } => {
@@ -220,6 +247,7 @@ impl OutputNode {
         }
     }
 
+    /// Constructs an output node from a directory.
     fn create_from_dir(dir: impl AsRef<Path>) -> Result<Self, Error> {
         let dir = dir.as_ref();
         let content =
@@ -245,6 +273,7 @@ impl OutputNode {
         })
     }
 
+    /// Constructs an output node from a file.
     fn create_from_file(file: impl AsRef<Path>) -> Result<Self, Error> {
         let file = file.as_ref();
         let name = file.file_name().unwrap().to_string_lossy().to_string();

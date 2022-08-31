@@ -6,6 +6,7 @@ use crate::{quiet_assert, TracebackError};
 use chrono::{Local, NaiveTime};
 use dateparser::parse_with;
 
+/// Parses the `dateformat` function.
 pub struct DateFormatParser;
 
 #[derive(Debug, Clone)]

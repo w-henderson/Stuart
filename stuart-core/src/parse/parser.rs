@@ -1,9 +1,15 @@
+//! Provides a low-level parser.
+
 use super::error::{ParseError, TracebackError};
 
 use std::iter::Peekable;
 use std::path::Path;
 use std::str::Chars;
 
+/// Represents a parser.
+///
+/// Heavily inspired by [Humphrey JSON's parser](https://github.com/w-henderson/Humphrey/blob/8bf07aada8acb7e25991ac9e9f9462d9fb3086b0/humphrey-json/src/parser.rs#L59).
+#[allow(clippy::missing_docs_in_private_items)]
 pub struct Parser<'a> {
     chars: Peekable<Chars<'a>>,
     path: &'a Path,
@@ -14,6 +20,7 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
+    /// Creates a new parser for characters at the given path.
     pub fn new(chars: Chars<'a>, path: &'a Path) -> Self {
         Self {
             chars: chars.peekable(),
@@ -25,6 +32,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Generates a traceback error for the current position.
     pub fn traceback(&self, e: ParseError) -> TracebackError<ParseError> {
         TracebackError {
             path: self.path.to_path_buf(),
@@ -34,6 +42,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Gets the next character from the parser, returning an error if the end of the input is reached.
     #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> Result<char, TracebackError<ParseError>> {
         if let Some(c) = self.chars.next() {
@@ -53,10 +62,12 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Peeks at the next character from the parser.
     pub fn peek(&mut self) -> Option<char> {
         self.chars.peek().copied()
     }
 
+    /// Consumes characters from the parser for the length of the input string, and returns an error if they do not match.
     pub fn expect(&mut self, s: &str) -> Result<(), TracebackError<ParseError>> {
         let chars = s.chars();
 
@@ -69,7 +80,9 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    /// does not include the pattern
+    /// Extracts a string from the parser until the given string is found.
+    ///
+    /// The string is not included in the output.
     pub fn extract_until(&mut self, s: &str) -> Option<String> {
         let mut result = String::with_capacity(128);
         let old_chars = self.chars.clone();
@@ -91,6 +104,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Extracts characters from the parser while the predicate returns `true`.
     pub fn extract_while<F>(&mut self, mut f: F) -> String
     where
         F: FnMut(char) -> bool,
@@ -108,6 +122,7 @@ impl<'a> Parser<'a> {
         result
     }
 
+    /// Extracts all remaining characters in the parser.
     pub fn extract_remaining(&mut self) -> String {
         let mut result = String::with_capacity(128);
 
@@ -118,6 +133,7 @@ impl<'a> Parser<'a> {
         result
     }
 
+    /// Ignores characters from the parser while the predicate returns `true`.
     pub fn ignore_while<F>(&mut self, f: F)
     where
         F: Fn(char) -> bool,
@@ -131,10 +147,12 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Returns the current line and column of the parser.
     pub fn location(&self) -> (u32, u32) {
         (self.line, self.column)
     }
 
+    /// Returns the path of the parser.
     pub fn path(&self) -> &Path {
         self.path
     }

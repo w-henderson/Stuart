@@ -3,6 +3,7 @@ use crate::parse::{ParseError, RawFunction};
 use crate::process::{ProcessError, Scope};
 use crate::{quiet_assert, TracebackError};
 
+/// Parses the `excerpt` function.
 pub struct ExcerptParser;
 
 #[derive(Debug, Clone)]
