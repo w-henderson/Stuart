@@ -11,6 +11,9 @@ pub mod process;
 #[macro_use]
 pub mod functions;
 
+#[cfg(test)]
+mod tests;
+
 pub use config::Config;
 pub use fs::{Node, OutputNode};
 
