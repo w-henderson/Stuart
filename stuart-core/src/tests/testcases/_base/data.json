@@ -6,7 +6,8 @@
       "Buckingham Palace",
       "Tower of London",
       "Stonehenge"
-    ]
+    ],
+    "independence": null
   },
   {
     "name": "United States",
@@ -15,7 +16,8 @@
       "Statue of Liberty",
       "Grand Canyon",
       "Golden Gate Bridge"
-    ]
+    ],
+    "independence": "July 4th, 1776"
   },
   {
     "name": "Japan",
@@ -24,6 +26,7 @@
       "Tokyo Tower",
       "Mount Fuji",
       "Osaka Castle"
-    ]
+    ],
+    "independence": null
   }
 ]

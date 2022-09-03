@@ -1,0 +1,7 @@
+{{ begin("main") }}
+<ul>
+{{ for($post, "posts/", sortby=$post.name, order="asc") }}
+<li>{{ $post.title }} was posted on a {{ dateformat($post.date, "%A") }}</li>
+{{ end(for) }}
+</ul>
+{{ end("main") }}

@@ -5,7 +5,15 @@ use crate::{Config, Node, OutputNode, SpecialFiles, Stuart};
 
 use std::path::PathBuf;
 
-define_testcases![for_loop_markdown, for_loop_json_file, for_loop_json_object];
+define_testcases![
+    for_loop_markdown,
+    for_loop_json_file,
+    for_loop_json_object,
+    for_loop_nested,
+    dateformat,
+    excerpt,
+    ifdefined
+];
 
 pub struct Testcase {
     context: Node,
