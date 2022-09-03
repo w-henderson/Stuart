@@ -1,0 +1,7 @@
+{{ begin("main") }}
+<ul>
+{{ for($country, "data.json") }}
+<li>{{ $country.name }} ({{ $country.continent }})</li>
+{{ end(for) }}
+</ul>
+{{ end("main") }}

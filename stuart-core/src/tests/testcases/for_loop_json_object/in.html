@@ -1,0 +1,8 @@
+{{ begin("main") }}
+{{ import($data, "data.json") }}
+<ul>
+{{ for($attraction, $data.0.attractions) }}
+<li>{{ $attraction }}</li>
+{{ end(for) }}
+</ul>
+{{ end("main") }}

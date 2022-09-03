@@ -1,0 +1,29 @@
+[
+  {
+    "name": "United Kingdom",
+    "continent": "Europe",
+    "attractions": [
+      "Buckingham Palace",
+      "Tower of London",
+      "Stonehenge"
+    ]
+  },
+  {
+    "name": "United States",
+    "continent": "North America",
+    "attractions": [
+      "Statue of Liberty",
+      "Grand Canyon",
+      "Golden Gate Bridge"
+    ]
+  },
+  {
+    "name": "Japan",
+    "continent": "Asia",
+    "attractions": [
+      "Tokyo Tower",
+      "Mount Fuji",
+      "Osaka Castle"
+    ]
+  }
+]

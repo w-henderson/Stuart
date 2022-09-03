@@ -1,6 +1,11 @@
+#[macro_use]
+mod r#macro;
+
 use crate::{Config, Node, OutputNode, SpecialFiles, Stuart};
 
 use std::path::PathBuf;
+
+define_testcases![for_loop_markdown, for_loop_json_file, for_loop_json_object];
 
 pub struct Testcase {
     context: Node,
@@ -86,10 +91,4 @@ impl Testcase {
 fn load_base() -> Node {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/tests/testcases/_base");
     Node::create_from_dir(path).unwrap()
-}
-
-#[test]
-fn for_loop_markdown() {
-    let testcase = Testcase::new("for_loop_markdown");
-    testcase.run();
 }
