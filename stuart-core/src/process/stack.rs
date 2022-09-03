@@ -46,7 +46,14 @@ pub fn get_value(index: &[&str], json: &Value) -> Value {
     for &index in index {
         match current_json.get(index) {
             Some(value) => current_json = value,
-            None => return Value::Null,
+            None => match index
+                .parse::<usize>()
+                .ok()
+                .and_then(|i| current_json.get(i))
+            {
+                Some(value) => current_json = value,
+                None => return Value::Null,
+            },
         }
     }
 
