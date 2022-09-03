@@ -5,7 +5,7 @@ on:
     - "stuart-core/**"
     - ".github/workflows/cli.yml"
 
-name: Core
+name: CLI
 
 jobs:
   check:
