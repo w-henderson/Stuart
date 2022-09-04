@@ -1,0 +1,9 @@
+{{ begin("main") }}
+<ul>
+{{ for($country, "data.json") }}
+{{ ifdefined($country.independence) }}
+<li>{{ $country.name }} gained independence on {{ $country.independence }}.</li>
+{{ end(ifdefined) }}
+{{ end(for) }}
+</ul>
+{{ end("main") }}

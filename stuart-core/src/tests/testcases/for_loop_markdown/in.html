@@ -1,0 +1,7 @@
+{{ begin("main") }}
+<ul>
+{{ for($post, "posts/", sortby=$post.date, order="desc") }}
+<li>{{ $post.title }}</li>
+{{ end(for) }}
+</ul>
+{{ end("main") }}

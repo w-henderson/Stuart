@@ -11,7 +11,7 @@ use std::io::ErrorKind;
 use std::path::{Component, Path, PathBuf};
 
 /// Represents an output node in the virtual filesystem tree.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum OutputNode {
     /// A file in the virtual filesystem tree.
     File {
@@ -248,7 +248,7 @@ impl OutputNode {
     }
 
     /// Constructs an output node from a directory.
-    fn create_from_dir(dir: impl AsRef<Path>) -> Result<Self, Error> {
+    pub(crate) fn create_from_dir(dir: impl AsRef<Path>) -> Result<Self, Error> {
         let dir = dir.as_ref();
         let content =
             read_dir(&dir).map_err(|_| Error::NotFound(dir.to_string_lossy().to_string()))?;
@@ -274,7 +274,7 @@ impl OutputNode {
     }
 
     /// Constructs an output node from a file.
-    fn create_from_file(file: impl AsRef<Path>) -> Result<Self, Error> {
+    pub(crate) fn create_from_file(file: impl AsRef<Path>) -> Result<Self, Error> {
         let file = file.as_ref();
         let name = file.file_name().unwrap().to_string_lossy().to_string();
         let contents = read(&file).map_err(|_| Error::Read)?;

@@ -1,0 +1,12 @@
+{{ begin("main") }}
+<ul>
+{{ for($post, "posts/", sortby=$post.title, order="asc") }}
+<li>{{ excerpt($post.content, 5) }}</li>
+{{ end(for) }}
+</ul>
+<ul>
+{{ for($post, "posts/", sortby=$post.title, order="asc") }}
+<li>{{ excerpt($post.content, 100) }}</li>
+{{ end(for) }}
+</ul>
+{{ end("main") }}

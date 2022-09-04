@@ -180,9 +180,6 @@ impl Function for ForFunction {
                     }
                 }
 
-                // Clippy thinks `a.to_vec().into_iter()` is unnecessary, but it's not since we need to consume the
-                //   iterator over the local variable and return an owned version.
-                //#[allow(clippy::unnecessary_to_owned)]
                 variable
                     .and_then(|v| v.as_array().map(|a| a.to_vec()))
                     .ok_or_else(|| self_token.traceback(ProcessError::NotJsonArray))?
