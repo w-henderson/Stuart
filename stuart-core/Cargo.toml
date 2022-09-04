@@ -2,6 +2,13 @@
 name = "stuart_core"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+homepage = "https://github.com/w-henderson/Stuart"
+repository = "https://github.com/w-henderson/Stuart"
+description = "A Blazingly-Fast Static Site Generator."
+keywords = ["ssg"]
+categories = ["template-engine", "web-programming"]
+readme = "../README.md"
 
 [dependencies]
 humphrey_json = "^0.2.0"
