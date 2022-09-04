@@ -18,6 +18,8 @@ use crate::logger::{LogLevel, Logger, Progress, LOGGER};
 
 use clap::{App, Arg, ArgMatches, Command};
 
+use std::fs::{remove_dir_all, remove_file};
+use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 
 fn main() {
@@ -94,6 +96,9 @@ fn main() {
                         .default_value("10"),
                 ),
         )
+        .subcommand(
+            Command::new("clean").about("Removes the output directory and generated metadata"),
+        )
         .subcommand_required(true)
         .get_matches();
 
@@ -113,6 +118,7 @@ fn main() {
         Some(("dev", args)) => serve::serve(args.clone()),
         Some(("new", args)) => new::new(args),
         Some(("bench", args)) => bench(args),
+        Some(("clean", _)) => clean(),
         _ => unreachable!(),
     };
 
@@ -176,6 +182,23 @@ fn bench(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
     log!("Build:", "{:.2}ms mean", avg_build);
     log!("Scripts:", "{:.2}ms mean", avg_scripts);
     log!("Filesystem:", "{:.2}ms mean", avg_fs);
+
+    Ok(())
+}
+
+/// Removes the output directory and generated metadata.
+fn clean() -> Result<(), Box<dyn StuartError>> {
+    if !PathBuf::from("stuart.toml").exists() {
+        return Err("current working directory is not a Stuart project".into());
+    }
+
+    if PathBuf::from("dist").exists() {
+        remove_dir_all("dist").map_err(|_| "failed to remove output directory")?;
+    }
+
+    if PathBuf::from("metadata.json").exists() {
+        remove_file("metadata.json").map_err(|_| "failed to remove metadata file")?;
+    }
 
     Ok(())
 }
