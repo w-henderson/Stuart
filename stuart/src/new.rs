@@ -13,7 +13,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 /// The directory containing the default site template, built into the binary when compiled.
-static DEFAULT_PROJECT: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../example");
+static DEFAULT_PROJECT: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/example");
 
 /// Creates a new site with the given arguments.
 pub fn new(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
