@@ -137,7 +137,7 @@ fn build(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
     let manifest_path: &str = args.value_of("manifest-path").unwrap();
     let output: &str = args.value_of("output").unwrap();
 
-    build::build(manifest_path, output).map(|_| ())
+    build::build(manifest_path, output, "production").map(|_| ())
 }
 
 /// Runs the benchmark command with the given arguments.
@@ -159,7 +159,7 @@ fn bench(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
     progress.print();
 
     for _ in 1..=iters {
-        let result = build::build("stuart.toml", "dist")?;
+        let result = build::build("stuart.toml", "dist", "benchmark")?;
 
         total += result.total_duration;
         total_build += result.build_duration;

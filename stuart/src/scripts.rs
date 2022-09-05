@@ -29,6 +29,8 @@ pub struct Scripts {
     on_pre_build: Vec<PathBuf>,
     /// The paths of scripts to run after building.
     on_post_build: Vec<PathBuf>,
+    /// Environment variables to pass to scripts.
+    environment: Vec<(String, String)>,
 }
 
 /// Represents an error that can occur in relation to build scripts.
@@ -74,6 +76,12 @@ impl Scripts {
         }
     }
 
+    /// Sets the environment variables to pass to scripts.
+    pub fn with_environment_variables(mut self, environment: Vec<(String, String)>) -> Self {
+        self.environment = environment;
+        self
+    }
+
     /// Executes pre-build scripts.
     pub fn execute_pre_build(&self) -> Result<(), ScriptError> {
         self.execute(&self.on_pre_build)
@@ -94,18 +102,25 @@ impl Scripts {
             );
 
             #[cfg(target_os = "windows")]
-            let output = Command::new(script).output().map_err(|_| {
-                ScriptError::CouldNotExecute(
-                    script.file_name().unwrap().to_string_lossy().to_string(),
-                )
-            })?;
+            let output = Command::new(script)
+                .envs(self.environment.clone())
+                .output()
+                .map_err(|_| {
+                    ScriptError::CouldNotExecute(
+                        script.file_name().unwrap().to_string_lossy().to_string(),
+                    )
+                })?;
 
             #[cfg(not(target_os = "windows"))]
-            let output = Command::new("sh").arg(script).output().map_err(|_| {
-                ScriptError::CouldNotExecute(
-                    script.file_name().unwrap().to_string_lossy().to_string(),
-                )
-            })?;
+            let output = Command::new("sh")
+                .arg(script)
+                .envs(self.environment.clone())
+                .output()
+                .map_err(|_| {
+                    ScriptError::CouldNotExecute(
+                        script.file_name().unwrap().to_string_lossy().to_string(),
+                    )
+                })?;
 
             if !output.status.success() {
                 return Err(ScriptError::ScriptFailure {

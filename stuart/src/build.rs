@@ -23,7 +23,11 @@ pub struct BuildInfo {
 }
 
 /// Builds the site with the given configuration.
-pub fn build(manifest_path: &str, output: &str) -> Result<BuildInfo, Box<dyn StuartError>> {
+pub fn build(
+    manifest_path: &str,
+    output: &str,
+    stuart_env: &str,
+) -> Result<BuildInfo, Box<dyn StuartError>> {
     let path = PathBuf::try_from(&manifest_path)
         .ok()
         .and_then(|path| path.canonicalize().ok())
@@ -47,7 +51,42 @@ pub fn build(manifest_path: &str, output: &str) -> Result<BuildInfo, Box<dyn Stu
         },
     };
 
-    let scripts = Scripts::from_directory(path.parent().unwrap().join("scripts"));
+    let scripts = Scripts::from_directory(path.parent().unwrap().join("scripts"))
+        .with_environment_variables(vec![
+            (
+                "STUART_MANIFEST_PATH".into(),
+                path.to_string_lossy()
+                    .trim_start_matches("\\\\?\\")
+                    .to_string(),
+            ),
+            (
+                "STUART_MANIFEST_DIR".into(),
+                path.parent()
+                    .unwrap()
+                    .to_string_lossy()
+                    .trim_start_matches("\\\\?\\")
+                    .to_string(),
+            ),
+            (
+                "STUART_TEMP_DIR".into(),
+                path.parent()
+                    .unwrap()
+                    .join("temp")
+                    .to_string_lossy()
+                    .trim_start_matches("\\\\?\\")
+                    .to_string(),
+            ),
+            (
+                "STUART_OUT_DIR".into(),
+                path.parent()
+                    .unwrap()
+                    .join(output)
+                    .to_string_lossy()
+                    .trim_start_matches("\\\\?\\")
+                    .to_string(),
+            ),
+            ("STUART_ENV".into(), stuart_env.into()),
+        ]);
 
     let pre_build_start = Instant::now();
     scripts.execute_pre_build()?;
