@@ -15,7 +15,7 @@ pub mod functions;
 mod tests;
 
 pub use config::Config;
-pub use fs::{Node, OutputNode};
+pub use fs::Node;
 
 use crate::fs::ParsedContents;
 use crate::parse::LocatableToken;
@@ -44,7 +44,7 @@ pub struct Stuart {
     /// The input virtual filesystem tree.
     pub fs: Node,
     /// The output virtual filesystem tree.
-    pub out: Option<OutputNode>,
+    pub out: Option<Node>,
     /// The configuration of the project.
     pub config: Config,
 }
@@ -99,7 +99,7 @@ impl Stuart {
     /// Merges an output node with the built result.
     ///
     /// This is used for merging static content with the build output.
-    pub fn merge_output(&mut self, node: OutputNode) -> Result<(), ProcessError> {
+    pub fn merge_output(&mut self, node: Node) -> Result<(), ProcessError> {
         self.out
             .as_mut()
             .ok_or(ProcessError::NotBuilt)
@@ -138,7 +138,7 @@ impl Stuart {
         &self,
         node: &Node,
         specials: SpecialFiles,
-    ) -> Result<OutputNode, TracebackError<ProcessError>> {
+    ) -> Result<Node, TracebackError<ProcessError>> {
         match node {
             Node::Directory {
                 name,
@@ -151,7 +151,7 @@ impl Stuart {
                     .map(|n| self.build_node(n, specials))
                     .collect::<Result<Vec<_>, TracebackError<ProcessError>>>()?;
 
-                Ok(OutputNode::Directory {
+                Ok(Node::Directory {
                     name: name.clone(),
                     children,
                     source: source.clone(),

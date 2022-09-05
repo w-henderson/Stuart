@@ -12,7 +12,7 @@ use self::stack::StackFrame;
 
 use crate::fs::{Node, ParsedContents};
 use crate::parse::{LocatableToken, ParsedMarkdown, Token};
-use crate::{OutputNode, SpecialFiles, Stuart};
+use crate::{SpecialFiles, Stuart};
 
 use humphrey_json::Value;
 
@@ -49,7 +49,7 @@ impl Node {
         &self,
         processor: &Stuart,
         special_files: SpecialFiles,
-    ) -> Result<OutputNode, TracebackError<ProcessError>> {
+    ) -> Result<Node, TracebackError<ProcessError>> {
         let (new_contents, new_name) = if self.name() != "root.html" && self.name() != "md.html" {
             match self.parsed_contents() {
                 ParsedContents::Html(tokens) => (
@@ -65,15 +65,16 @@ impl Node {
             (None, None)
         };
 
-        Ok(OutputNode::File {
+        Ok(Node::File {
             name: new_name.unwrap_or_else(|| self.name().to_string()),
             contents: new_contents.unwrap_or_else(|| self.contents().unwrap().to_vec()),
-            source: self.source().to_path_buf(),
-            json: if processor.config.save_metadata {
+            parsed_contents: ParsedContents::None,
+            metadata: if processor.config.save_metadata {
                 self.parsed_contents().to_json()
             } else {
                 None
             },
+            source: self.source().to_path_buf(),
         })
     }
 

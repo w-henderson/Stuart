@@ -4,7 +4,7 @@ use crate::config;
 use crate::error::StuartError;
 use crate::scripts::Scripts;
 
-use stuart_core::{Node, OutputNode, Stuart, TracebackError};
+use stuart_core::{Node, Stuart, TracebackError};
 
 use std::fs::{read_to_string, remove_dir_all};
 use std::path::PathBuf;
@@ -103,7 +103,7 @@ pub fn build(
     );
 
     let build_start = Instant::now();
-    let fs = Node::new(path.parent().unwrap().join("content"))?;
+    let fs = Node::new(path.parent().unwrap().join("content"), true)?;
     let mut stuart = Stuart::new(fs, config.clone());
     stuart.build()?;
     let build_duration = build_start.elapsed().as_micros();
@@ -112,7 +112,7 @@ pub fn build(
         let dir_path = path.parent().unwrap().join(dir);
 
         if dir_path.exists() {
-            let node = OutputNode::new(path.parent().unwrap().join(dir))?;
+            let node = Node::new(path.parent().unwrap().join(dir), false)?;
             stuart.merge_output(node)?;
         }
     }

@@ -88,7 +88,10 @@ impl Token {
 }
 
 /// Attempts to parse a file at the given path into a list of tokens.
-pub fn parse(input: &str, path: &Path) -> Result<Vec<LocatableToken>, TracebackError<ParseError>> {
+pub fn parse_html(
+    input: &str,
+    path: &Path,
+) -> Result<Vec<LocatableToken>, TracebackError<ParseError>> {
     let chars = input.chars();
     let mut parser = Parser::new(chars, path);
     let mut tokens = Vec::new();

@@ -1,7 +1,7 @@
 #[macro_use]
 mod r#macro;
 
-use crate::{Config, Node, OutputNode, SpecialFiles, Stuart};
+use crate::{Config, Node, SpecialFiles, Stuart};
 
 use std::path::PathBuf;
 
@@ -18,7 +18,7 @@ define_testcases![
 pub struct Testcase {
     context: Node,
     input: Node,
-    output: OutputNode,
+    output: Node,
 }
 
 impl Testcase {
@@ -30,8 +30,8 @@ impl Testcase {
             .join("src/tests/testcases")
             .join(name);
 
-        let input = Node::create_from_file(path.join("in.html")).unwrap();
-        let output = OutputNode::create_from_file(path.join("out.html")).unwrap();
+        let input = Node::create_from_file(path.join("in.html"), true).unwrap();
+        let output = Node::create_from_file(path.join("out.html"), true).unwrap();
 
         // Add the input to the base context.
         match context {
@@ -71,8 +71,8 @@ impl Testcase {
 
         match (&out, &self.output) {
             (
-                OutputNode::File { contents, .. },
-                OutputNode::File {
+                Node::File { contents, .. },
+                Node::File {
                     contents: expected_contents,
                     ..
                 },
@@ -98,5 +98,5 @@ impl Testcase {
 
 fn load_base() -> Node {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/tests/testcases/_base");
-    Node::create_from_dir(path).unwrap()
+    Node::create_from_dir(path, true).unwrap()
 }
