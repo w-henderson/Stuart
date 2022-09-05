@@ -150,7 +150,17 @@ Build scripts should be placed in the `scripts` directory. Currently, the only s
 
 The `onPostBuild` script can access metadata about the build in the `metadata.json` file, if `save_metadata` is enabled in the project configuration.
 
-If a script wants to create files in the output directory, it should do so in the `temp` directory, which Stuart will merge into the output directory at the end of the build. This is to avoid conflicts with the build system, as writing directly to the output directory could cause unexpected behaviour.
+If a pre-build script wants to create files in the output directory, it should do so in the `temp` directory, which Stuart will merge into the output directory at the end of the build. This is to avoid conflicts with the build system, as writing directly to the output directory could cause unexpected behaviour.
+
+Certain environment variables are set for build scripts to provide information about the build. These are:
+
+| Name | Description |
+| --- | --- |
+| `STUART_MANIFEST_PATH` | The full path to the `stuart.toml` manifest file. |
+| `STUART_MANIFEST_DIR` | The full path to the directory containing the `stuart.toml` manifest file. |
+| `STUART_TEMP_DIR` | The full path to the `temp` directory where files should be placed during pre-build script execution. |
+| `STUART_OUT_DIR` | The full path to the output directory. |
+| `STUART_ENV` | The environment that Stuart is running in. This will be either `production`, `development`, or `benchmark`. |
 
 ## Templating Language
 

@@ -45,7 +45,7 @@ pub fn serve(args: ArgMatches) -> Result<(), Box<dyn StuartError>> {
 
     log!("Started", "development server at http://localhost:6904\n");
 
-    if let Err(e) = crate::build::build(&manifest_path, &output) {
+    if let Err(e) = crate::build::build(&manifest_path, &output, "development") {
         error_handler(&e);
     }
 
@@ -94,7 +94,7 @@ fn build_watcher(
                     .trim_start_matches("\\\\?\\")
             );
 
-            if let Err(e) = crate::build::build(&manifest_path, &output) {
+            if let Err(e) = crate::build::build(&manifest_path, &output, "development") {
                 error_handler(&e);
             } else {
                 let mut streams = streams.lock().unwrap();
