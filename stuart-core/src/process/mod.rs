@@ -16,6 +16,8 @@ use crate::{SpecialFiles, Stuart};
 
 use humphrey_json::Value;
 
+use std::path::PathBuf;
+
 /// Represents the scope of a function execution.
 pub struct Scope<'a> {
     /// The token iterator.
@@ -38,10 +40,18 @@ pub struct Scope<'a> {
     /// These are started with `begin("section name")` and ended with `end("section name")`.
     /// This should not be manipulated by custom functions.
     pub sections: &'a mut Vec<(String, Vec<u8>)>,
+
+    /// The dependencies of the node.
+    pub dependencies: &'a mut Vec<PathBuf>,
 }
 
-/// A tuple of a new body and a new name for a file.
-type NodeModifications = (Option<Vec<u8>>, Option<String>);
+/// The raw output of processing a node.
+#[derive(Default)]
+struct ProcessOutput {
+    body: Option<Vec<u8>>,
+    name: Option<String>,
+    dependencies: Vec<PathBuf>,
+}
 
 impl Node {
     /// Processes a node, returning an output node.
@@ -50,32 +60,53 @@ impl Node {
         processor: &Stuart,
         special_files: SpecialFiles,
     ) -> Result<Node, TracebackError<ProcessError>> {
-        let (new_contents, new_name) = if self.name() != "root.html" && self.name() != "md.html" {
+        let output = if self.name() != "root.html" && self.name() != "md.html" {
             match self.parsed_contents() {
-                ParsedContents::Html(tokens) => (
-                    Some(self.process_html(tokens, processor, special_files)?),
-                    None,
-                ),
+                ParsedContents::Html(tokens) => {
+                    self.process_html(tokens, processor, special_files)?
+                }
                 ParsedContents::Markdown(md) => {
                     self.process_markdown(md, processor, special_files)?
                 }
-                _ => (None, None),
+                _ => ProcessOutput::default(),
             }
         } else {
-            (None, None)
+            ProcessOutput::default()
         };
 
         Ok(Node::File {
-            name: new_name.unwrap_or_else(|| self.name().to_string()),
-            contents: new_contents.unwrap_or_else(|| self.contents().unwrap().to_vec()),
+            name: output.name.unwrap_or_else(|| self.name().to_string()),
+            contents: output
+                .body
+                .unwrap_or_else(|| self.contents().unwrap().to_vec()),
             parsed_contents: ParsedContents::None,
-            metadata: if processor.config.save_metadata {
-                self.parsed_contents().to_json()
-            } else {
-                None
+            metadata: {
+                let mut contents = if processor.config.save_metadata {
+                    self.parsed_contents()
+                        .to_json()
+                        .unwrap_or_else(|| Value::Object(Vec::new()))
+                } else {
+                    Value::Object(Vec::new())
+                };
+
+                contents["dependencies"] = Value::Array(
+                    output
+                        .dependencies
+                        .iter()
+                        .map(|p| {
+                            Value::String(
+                                p.to_string_lossy()
+                                    .trim_start_matches("\\\\?\\")
+                                    .to_string(),
+                            )
+                        })
+                        .collect(),
+                );
+
+                Some(contents)
             },
             source: self.source().to_path_buf(),
-            timestamp: self.timestamp(),
+            crc32: self.crc32().unwrap(),
         })
     }
 
@@ -85,8 +116,8 @@ impl Node {
         tokens: &[LocatableToken],
         processor: &Stuart,
         special_files: SpecialFiles,
-    ) -> Result<Vec<u8>, TracebackError<ProcessError>> {
-        let root = special_files.root.ok_or(TracebackError {
+    ) -> Result<ProcessOutput, TracebackError<ProcessError>> {
+        let (root, root_source) = special_files.root.ok_or(TracebackError {
             path: self.source().to_path_buf(),
             line: 0,
             column: 0,
@@ -96,11 +127,13 @@ impl Node {
         let mut token_iter = TokenIter::new(tokens);
         let mut stack: Vec<StackFrame> = vec![StackFrame::new("base")];
         let mut sections: Vec<(String, Vec<u8>)> = Vec::new();
+        let mut dependencies: Vec<PathBuf> = vec![root_source];
         let mut scope = Scope {
             tokens: &mut token_iter,
             stack: &mut stack,
             processor,
             sections: &mut sections,
+            dependencies: &mut dependencies,
         };
 
         while let Some(token) = scope.tokens.next() {
@@ -130,7 +163,11 @@ impl Node {
             token.process(&mut scope)?;
         }
 
-        Ok(stack.pop().unwrap().output)
+        Ok(ProcessOutput {
+            body: Some(stack.pop().unwrap().output),
+            name: None,
+            dependencies,
+        })
     }
 
     /// Processes a markdown node, returning the processed output.
@@ -139,15 +176,15 @@ impl Node {
         md: &ParsedMarkdown,
         processor: &Stuart,
         special_files: SpecialFiles,
-    ) -> Result<NodeModifications, TracebackError<ProcessError>> {
-        let root = special_files.root.ok_or(TracebackError {
+    ) -> Result<ProcessOutput, TracebackError<ProcessError>> {
+        let (root, root_source) = special_files.root.ok_or(TracebackError {
             path: self.source().to_path_buf(),
             line: 0,
             column: 0,
             kind: ProcessError::MissingHtmlRoot,
         })?;
 
-        let md_tokens = special_files.md.ok_or(TracebackError {
+        let (md_tokens, md_source) = special_files.md.ok_or(TracebackError {
             path: self.source().to_path_buf(),
             line: 0,
             column: 0,
@@ -161,11 +198,13 @@ impl Node {
             frame
         }];
         let mut sections: Vec<(String, Vec<u8>)> = Vec::new();
+        let mut dependencies: Vec<PathBuf> = vec![root_source, md_source];
         let mut scope = Scope {
             tokens: &mut token_iter,
             stack: &mut stack,
             processor,
             sections: &mut sections,
+            dependencies: &mut dependencies,
         };
 
         while let Some(token) = scope.tokens.next() {
@@ -197,7 +236,11 @@ impl Node {
 
         let new_name = format!("{}.html", self.name().strip_suffix(".md").unwrap());
 
-        Ok((Some(stack.pop().unwrap().output), Some(new_name)))
+        Ok(ProcessOutput {
+            body: Some(stack.pop().unwrap().output),
+            name: Some(new_name),
+            dependencies,
+        })
     }
 }
 

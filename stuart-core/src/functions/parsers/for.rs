@@ -119,7 +119,7 @@ impl Function for ForFunction {
         let waypoint = scope.tokens.waypoint();
         let self_token = scope.tokens.current().unwrap().clone();
 
-        let mut variables: Vec<Value> = match self.source_type {
+        let (mut variables, source): (Vec<Value>, Option<PathBuf>) = match self.source_type {
             ForFunctionSourceType::MarkdownDirectory => {
                 let directory = scope
                     .processor
@@ -133,15 +133,18 @@ impl Function for ForFunction {
                     return Err(self_token.traceback(ProcessError::NotFound(self.source.clone())));
                 }
 
-                directory
-                    .children()
-                    .unwrap()
-                    .iter()
-                    .filter_map(|n| match n.parsed_contents() {
-                        ParsedContents::Markdown(md) => Some(md.to_value()),
-                        _ => None,
-                    })
-                    .collect()
+                (
+                    directory
+                        .children()
+                        .unwrap()
+                        .iter()
+                        .filter_map(|n| match n.parsed_contents() {
+                            ParsedContents::Markdown(md) => Some(md.to_value()),
+                            _ => None,
+                        })
+                        .collect(),
+                    Some(directory.source().to_path_buf()),
+                )
             }
             ForFunctionSourceType::JSONFile => {
                 let file = scope
@@ -156,12 +159,15 @@ impl Function for ForFunction {
                     return Err(self_token.traceback(ProcessError::NotFound(self.source.clone())));
                 }
 
-                match file.parsed_contents() {
-                    ParsedContents::Json(json) => json.as_array().map(|a| a.iter().cloned()),
-                    _ => None,
-                }
-                .ok_or_else(|| self_token.traceback(ProcessError::NotJsonArray))?
-                .collect()
+                (
+                    match file.parsed_contents() {
+                        ParsedContents::Json(json) => json.as_array().map(|a| a.iter().cloned()),
+                        _ => None,
+                    }
+                    .ok_or_else(|| self_token.traceback(ProcessError::NotJsonArray))?
+                    .collect(),
+                    Some(file.source().to_path_buf()),
+                )
             }
             ForFunctionSourceType::JSONObject => {
                 let mut variable_iter = self.source.split('.');
@@ -180,9 +186,12 @@ impl Function for ForFunction {
                     }
                 }
 
-                variable
-                    .and_then(|v| v.as_array().map(|a| a.to_vec()))
-                    .ok_or_else(|| self_token.traceback(ProcessError::NotJsonArray))?
+                (
+                    variable
+                        .and_then(|v| v.as_array().map(|a| a.to_vec()))
+                        .ok_or_else(|| self_token.traceback(ProcessError::NotJsonArray))?,
+                    None,
+                )
             }
         };
 
@@ -222,6 +231,12 @@ impl Function for ForFunction {
                     .next()
                     .ok_or_else(|| self_token.traceback(ProcessError::UnexpectedEndOfFile))?;
                 token.process(scope)?;
+            }
+        }
+
+        if let Some(source) = source {
+            if !scope.dependencies.contains(&source) {
+                scope.dependencies.push(source);
             }
         }
 

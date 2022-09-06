@@ -52,18 +52,24 @@ impl Testcase {
         // Create a mock processing scenario.
         let stuart = Stuart::new(self.context.clone(), Config::default());
         let specials = SpecialFiles {
-            root: self
-                .context
-                .get_at_path(&PathBuf::from("root.html"))
-                .unwrap()
-                .parsed_contents()
-                .tokens(),
-            md: self
-                .context
-                .get_at_path(&PathBuf::from("md.html"))
-                .unwrap()
-                .parsed_contents()
-                .tokens(),
+            root: Some((
+                self.context
+                    .get_at_path(&PathBuf::from("root.html"))
+                    .unwrap()
+                    .parsed_contents()
+                    .tokens()
+                    .unwrap(),
+                PathBuf::from("root.html"),
+            )),
+            md: Some((
+                self.context
+                    .get_at_path(&PathBuf::from("md.html"))
+                    .unwrap()
+                    .parsed_contents()
+                    .tokens()
+                    .unwrap(),
+                PathBuf::from("md.html"),
+            )),
         };
 
         // Process the input node.

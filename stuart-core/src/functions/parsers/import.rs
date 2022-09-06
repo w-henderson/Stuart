@@ -84,6 +84,11 @@ impl Function for ImportFunction {
 
         frame.add_variable(self.variable_name.clone(), json);
 
+        let source = file.source().to_path_buf();
+        if !scope.dependencies.contains(&source) {
+            scope.dependencies.push(source);
+        }
+
         Ok(())
     }
 }

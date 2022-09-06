@@ -52,12 +52,12 @@ pub struct Stuart {
 /// The nearest "special files" to a given node.
 ///
 /// These are the root HTML file and the root markdown HTML file.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct SpecialFiles<'a> {
     /// The root HTML file.
-    pub root: Option<&'a [LocatableToken]>,
+    pub root: Option<(&'a [LocatableToken], PathBuf)>,
     /// The root markdown HTML file.
-    pub md: Option<&'a [LocatableToken]>,
+    pub md: Option<(&'a [LocatableToken], PathBuf)>,
 }
 
 /// Encapsulates an error and its location.
@@ -124,7 +124,7 @@ impl Stuart {
         if let Some(out) = &self.out {
             let base = json!({
                 "name": (self.config.name.clone()),
-                "author": (self.config.author.clone())
+                "author": (self.config.author.clone()),
             });
 
             out.save_metadata(base, &path).map_err(ProcessError::Fs)
@@ -144,19 +144,17 @@ impl Stuart {
                 name,
                 children,
                 source,
-                timestamp,
             } => {
                 let specials = specials.update_from_children(children);
                 let children = children
                     .iter()
-                    .map(|n| self.build_node(n, specials))
+                    .map(|n| self.build_node(n, specials.clone()))
                     .collect::<Result<Vec<_>, TracebackError<ProcessError>>>()?;
 
                 Ok(Node::Directory {
                     name: name.clone(),
                     children,
                     source: source.clone(),
-                    timestamp: *timestamp,
                 })
             }
             Node::File { .. } => node.process(self, specials),
@@ -166,20 +164,22 @@ impl Stuart {
 
 impl<'a> SpecialFiles<'a> {
     /// Updates the special files from a list of children.
-    fn update_from_children(&self, children: &'a [Node]) -> SpecialFiles {
-        let mut specials = *self;
-
+    fn update_from_children(mut self, children: &'a [Node]) -> SpecialFiles {
         for child in children {
             match child.name() {
                 "root.html" => {
-                    specials.root = match child.parsed_contents() {
-                        ParsedContents::Html(tokens) => Some(tokens),
+                    self.root = match child.parsed_contents() {
+                        ParsedContents::Html(tokens) => {
+                            Some((tokens, child.source().to_path_buf()))
+                        }
                         _ => None,
                     }
                 }
                 "md.html" => {
-                    specials.md = match child.parsed_contents() {
-                        ParsedContents::Html(tokens) => Some(tokens),
+                    self.md = match child.parsed_contents() {
+                        ParsedContents::Html(tokens) => {
+                            Some((tokens, child.source().to_path_buf()))
+                        }
                         _ => None,
                     }
                 }
@@ -187,6 +187,6 @@ impl<'a> SpecialFiles<'a> {
             }
         }
 
-        specials
+        self
     }
 }

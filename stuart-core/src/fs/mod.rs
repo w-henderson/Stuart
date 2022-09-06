@@ -32,8 +32,10 @@ pub enum Node {
         metadata: Option<Value>,
         /// The filesystem source of the file.
         source: PathBuf,
-        /// The timestamp when the file was last modified.
-        timestamp: u64,
+        /// The CRC32 hash of the file's contents.
+        ///
+        /// **Important:** If this is an output node, this is the hash of the input file's contents.
+        crc32: u32,
     },
     /// A directory in the virtual filesystem tree.
     Directory {
@@ -43,8 +45,6 @@ pub enum Node {
         children: Vec<Node>,
         /// The filesystem source of the directory.
         source: PathBuf,
-        /// The timestamp when the directory was last modified.
-        timestamp: u64,
     },
 }
 
@@ -141,10 +141,10 @@ impl Node {
     }
 
     /// Returns the timestamp when the node was last modified.
-    pub fn timestamp(&self) -> u64 {
+    pub fn crc32(&self) -> Option<u32> {
         match self {
-            Node::File { timestamp, .. } => *timestamp,
-            Node::Directory { timestamp, .. } => *timestamp,
+            Node::File { crc32, .. } => Some(*crc32),
+            Node::Directory { .. } => None,
         }
     }
 
@@ -189,19 +189,10 @@ impl Node {
             })
             .collect::<Result<_, _>>()?;
 
-        let metadata = metadata(&dir).map_err(|_| Error::Read)?;
-        let timestamp = metadata
-            .modified()
-            .map_err(|_| Error::Read)?
-            .elapsed()
-            .unwrap()
-            .as_secs();
-
         Ok(Node::Directory {
             name: dir.file_name().unwrap().to_string_lossy().to_string(),
             children,
             source: dir.to_path_buf(),
-            timestamp,
         })
     }
 
@@ -238,13 +229,7 @@ impl Node {
             ParsedContents::None
         };
 
-        let metadata = metadata(&file).map_err(|_| Error::Read)?;
-        let timestamp = metadata
-            .modified()
-            .map_err(|_| Error::Read)?
-            .elapsed()
-            .unwrap()
-            .as_secs();
+        let crc32 = crc32fast::hash(&contents);
 
         Ok(Node::File {
             name,
@@ -252,7 +237,7 @@ impl Node {
             parsed_contents,
             metadata: None,
             source: file.to_path_buf(),
-            timestamp,
+            crc32,
         })
     }
 
@@ -394,9 +379,23 @@ impl Node {
             Self::File {
                 name,
                 metadata: json,
+                crc32,
                 ..
             } => {
-                let mut metadata = json!({ "name": name });
+                let name = if json
+                    .as_ref()
+                    .map(|v| v["type"] == json!("markdown"))
+                    .unwrap_or(false)
+                {
+                    name.strip_suffix(".html").unwrap().to_string() + ".md"
+                } else {
+                    name.to_string()
+                };
+
+                let mut metadata = json!({
+                    "name": name,
+                    "crc32": crc32
+                });
 
                 if let Some(json) = json {
                     for (key, value) in json.as_object().unwrap() {
@@ -421,7 +420,7 @@ impl Debug for Node {
                 parsed_contents,
                 metadata,
                 source,
-                timestamp,
+                crc32,
             } => f
                 .debug_struct("File")
                 .field("name", name)
@@ -429,19 +428,17 @@ impl Debug for Node {
                 .field("parsed_contents", parsed_contents)
                 .field("metadata", metadata)
                 .field("source", source)
-                .field("timestamp", timestamp)
+                .field("crc32", crc32)
                 .finish(),
             Self::Directory {
                 name,
                 children,
                 source,
-                timestamp,
             } => f
                 .debug_struct("Directory")
                 .field("name", name)
                 .field("children", children)
                 .field("source", source)
-                .field("timestamp", timestamp)
                 .finish(),
         }
     }
