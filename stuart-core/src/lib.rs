@@ -144,6 +144,7 @@ impl Stuart {
                 name,
                 children,
                 source,
+                timestamp,
             } => {
                 let specials = specials.update_from_children(children);
                 let children = children
@@ -155,6 +156,7 @@ impl Stuart {
                     name: name.clone(),
                     children,
                     source: source.clone(),
+                    timestamp: *timestamp,
                 })
             }
             Node::File { .. } => node.process(self, specials),

@@ -75,6 +75,7 @@ impl Node {
                 None
             },
             source: self.source().to_path_buf(),
+            timestamp: self.timestamp(),
         })
     }
 

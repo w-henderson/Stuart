@@ -32,6 +32,8 @@ pub enum Node {
         metadata: Option<Value>,
         /// The filesystem source of the file.
         source: PathBuf,
+        /// The timestamp when the file was last modified.
+        timestamp: u64,
     },
     /// A directory in the virtual filesystem tree.
     Directory {
@@ -41,6 +43,8 @@ pub enum Node {
         children: Vec<Node>,
         /// The filesystem source of the directory.
         source: PathBuf,
+        /// The timestamp when the directory was last modified.
+        timestamp: u64,
     },
 }
 
@@ -136,6 +140,14 @@ impl Node {
         }
     }
 
+    /// Returns the timestamp when the node was last modified.
+    pub fn timestamp(&self) -> u64 {
+        match self {
+            Node::File { timestamp, .. } => *timestamp,
+            Node::Directory { timestamp, .. } => *timestamp,
+        }
+    }
+
     /// Attempts to get a node at the given path of the filesystem.
     pub fn get_at_path(&self, path: &Path) -> Option<&Self> {
         let mut working_path = vec![self];
@@ -177,10 +189,19 @@ impl Node {
             })
             .collect::<Result<_, _>>()?;
 
+        let metadata = metadata(&dir).map_err(|_| Error::Read)?;
+        let timestamp = metadata
+            .modified()
+            .map_err(|_| Error::Read)?
+            .elapsed()
+            .unwrap()
+            .as_secs();
+
         Ok(Node::Directory {
             name: dir.file_name().unwrap().to_string_lossy().to_string(),
             children,
             source: dir.to_path_buf(),
+            timestamp,
         })
     }
 
@@ -217,12 +238,21 @@ impl Node {
             ParsedContents::None
         };
 
+        let metadata = metadata(&file).map_err(|_| Error::Read)?;
+        let timestamp = metadata
+            .modified()
+            .map_err(|_| Error::Read)?
+            .elapsed()
+            .unwrap()
+            .as_secs();
+
         Ok(Node::File {
             name,
             contents,
             parsed_contents,
             metadata: None,
             source: file.to_path_buf(),
+            timestamp,
         })
     }
 
@@ -391,6 +421,7 @@ impl Debug for Node {
                 parsed_contents,
                 metadata,
                 source,
+                timestamp,
             } => f
                 .debug_struct("File")
                 .field("name", name)
@@ -398,16 +429,19 @@ impl Debug for Node {
                 .field("parsed_contents", parsed_contents)
                 .field("metadata", metadata)
                 .field("source", source)
+                .field("timestamp", timestamp)
                 .finish(),
             Self::Directory {
                 name,
                 children,
                 source,
+                timestamp,
             } => f
                 .debug_struct("Directory")
                 .field("name", name)
                 .field("children", children)
                 .field("source", source)
+                .field("timestamp", timestamp)
                 .finish(),
         }
     }
