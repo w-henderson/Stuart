@@ -88,6 +88,20 @@ impl Node {
         Self::create_from_dir(root, parse)
     }
 
+    /// Constructs a new virtual filesystem tree from the given filesystem path, making use of incremental compilation.
+    pub fn new_incremental(
+        root: impl AsRef<Path>,
+        metadata: &Value,
+    ) -> Result<Option<Self>, Error> {
+        let root = root
+            .as_ref()
+            .to_path_buf()
+            .canonicalize()
+            .map_err(|_| Error::NotFound(root.as_ref().to_string_lossy().to_string()))?;
+
+        Self::create_from_dir_incremental(root, Some(&metadata["data"]))
+    }
+
     /// Returns `true` if the node is a directory.
     pub fn is_dir(&self) -> bool {
         matches!(self, Node::Directory { .. })
@@ -196,6 +210,55 @@ impl Node {
         })
     }
 
+    /// Creates a new node from a directory of the filesystem, making use of incremental compilation.
+    pub(crate) fn create_from_dir_incremental(
+        dir: impl AsRef<Path>,
+        meta: Option<&Value>,
+    ) -> Result<Option<Self>, Error> {
+        let dir = dir.as_ref();
+        let content =
+            read_dir(&dir).map_err(|_| Error::NotFound(dir.to_string_lossy().to_string()))?;
+
+        let children = content
+            .flatten()
+            .map(|path| {
+                let path = path.path();
+                let meta = meta.and_then(|m| {
+                    m.as_array().unwrap().iter().find(|m| {
+                        m["name"]
+                            == Value::String(
+                                path.file_name().unwrap().to_string_lossy().to_string(),
+                            )
+                    })
+                });
+
+                match metadata(&path).map(|m| m.file_type()) {
+                    Ok(t) if t.is_dir() => {
+                        Self::create_from_dir_incremental(&path, meta.map(|m| &m["children"]))
+                    }
+                    Ok(t) if t.is_file() => Self::create_from_file_incremental(
+                        &path,
+                        meta.and_then(|m| m["crc32"].as_number()).map(|n| n as u32),
+                    ),
+                    _ => Err(Error::Read),
+                }
+            })
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+
+        if children.is_empty() {
+            return Ok(None);
+        }
+
+        Ok(Some(Node::Directory {
+            name: dir.file_name().unwrap().to_string_lossy().to_string(),
+            children,
+            source: dir.to_path_buf(),
+        }))
+    }
+
     /// Creates a new node from a file of the filesystem.
     pub(crate) fn create_from_file(file: impl AsRef<Path>, parse: bool) -> Result<Self, Error> {
         let file = file.as_ref();
@@ -239,6 +302,55 @@ impl Node {
             source: file.to_path_buf(),
             crc32,
         })
+    }
+
+    /// Creates a new node from a file of the filesystem, making use of incremental compilation.
+    pub(crate) fn create_from_file_incremental(
+        file: impl AsRef<Path>,
+        crc32: Option<u32>,
+    ) -> Result<Option<Self>, Error> {
+        let file = file.as_ref();
+        let name = file.file_name().unwrap().to_string_lossy().to_string();
+        let contents = read(&file).map_err(|_| Error::Read)?;
+        let new_crc32 = crc32fast::hash(&contents);
+
+        if crc32.map(|c| c == new_crc32).unwrap_or(false) {
+            return Ok(None);
+        }
+
+        let parsed_contents = {
+            let extension = file.extension().map(|e| e.to_string_lossy().to_string());
+            let contents_string = std::str::from_utf8(&contents).map_err(|_| Error::Read);
+
+            match extension.as_deref() {
+                Some("html") => {
+                    ParsedContents::Html(parse_html(contents_string?, file).map_err(Error::Parse)?)
+                }
+                Some("md") => ParsedContents::Markdown(
+                    parse_markdown(contents_string?.to_string(), file).map_err(Error::Parse)?,
+                ),
+                Some("json") => ParsedContents::Json(
+                    humphrey_json::from_str(contents_string?).map_err(|_| {
+                        Error::Parse(TracebackError {
+                            path: file.to_path_buf(),
+                            kind: ParseError::InvalidJson,
+                            column: 0,
+                            line: 0,
+                        })
+                    })?,
+                ),
+                _ => ParsedContents::None,
+            }
+        };
+
+        Ok(Some(Node::File {
+            name,
+            contents,
+            parsed_contents,
+            metadata: None,
+            source: file.to_path_buf(),
+            crc32: new_crc32,
+        }))
     }
 
     /// Save the node to the filesystem with the given configuration.
