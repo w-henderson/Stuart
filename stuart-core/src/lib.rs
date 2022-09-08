@@ -21,7 +21,7 @@ use crate::fs::ParsedContents;
 use crate::parse::LocatableToken;
 use crate::process::error::ProcessError;
 
-use humphrey_json::prelude::*;
+use humphrey_json::{prelude::*, Value};
 
 use std::fmt::Debug;
 use std::path::{Path, PathBuf};
@@ -45,6 +45,8 @@ pub struct Stuart {
     pub fs: Node,
     /// The output virtual filesystem tree.
     pub out: Option<Node>,
+    /// The dependency list for incremental compilation.
+    pub dependencies: Vec<(PathBuf, Vec<PathBuf>)>,
     /// The configuration of the project.
     pub config: Config,
 }
@@ -79,6 +81,7 @@ impl Stuart {
         Self {
             fs,
             out: None,
+            dependencies: Vec::new(),
             config,
         }
     }
@@ -91,7 +94,10 @@ impl Stuart {
         }
         .update_from_children(self.fs.children().unwrap());
 
-        self.out = Some(self.build_node(&self.fs, specials)?);
+        let mut dependencies = Vec::new();
+
+        self.out = Some(self.build_node(&self.fs, specials, &mut dependencies)?);
+        self.dependencies = dependencies;
 
         Ok(())
     }
@@ -122,10 +128,34 @@ impl Stuart {
         }
 
         if let Some(out) = &self.out {
-            let base = json!({
+            let mut base = json!({
                 "name": (self.config.name.clone()),
-                "author": (self.config.author.clone()),
+                "author": (self.config.author.clone())
             });
+
+            base["dependencies"] = Value::Object(
+                self.dependencies
+                    .iter()
+                    .map(|(a, b)| {
+                        (
+                            a.to_string_lossy()
+                                .trim_start_matches("\\\\?\\")
+                                .to_string(),
+                            Value::Array(
+                                b.iter()
+                                    .map(|p| {
+                                        Value::String(
+                                            p.to_string_lossy()
+                                                .trim_start_matches("\\\\?\\")
+                                                .to_string(),
+                                        )
+                                    })
+                                    .collect::<Vec<_>>(),
+                            ),
+                        )
+                    })
+                    .collect::<Vec<_>>(),
+            );
 
             out.save_metadata(base, &path).map_err(ProcessError::Fs)
         } else {
@@ -138,6 +168,7 @@ impl Stuart {
         &self,
         node: &Node,
         specials: SpecialFiles,
+        dependencies: &mut Vec<(PathBuf, Vec<PathBuf>)>,
     ) -> Result<Node, TracebackError<ProcessError>> {
         match node {
             Node::Directory {
@@ -148,7 +179,7 @@ impl Stuart {
                 let specials = specials.update_from_children(children);
                 let children = children
                     .iter()
-                    .map(|n| self.build_node(n, specials.clone()))
+                    .map(|n| self.build_node(n, specials.clone(), dependencies))
                     .collect::<Result<Vec<_>, TracebackError<ProcessError>>>()?;
 
                 Ok(Node::Directory {
@@ -157,7 +188,7 @@ impl Stuart {
                     source: source.clone(),
                 })
             }
-            Node::File { .. } => node.process(self, specials),
+            Node::File { .. } => node.process(self, specials, dependencies),
         }
     }
 }

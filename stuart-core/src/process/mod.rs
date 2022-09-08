@@ -48,8 +48,11 @@ pub struct Scope<'a> {
 /// The raw output of processing a node.
 #[derive(Default)]
 struct ProcessOutput {
+    /// The body of the new node, if different from the old one.
     body: Option<Vec<u8>>,
+    /// The name of the new node, if different from the old one.
     name: Option<String>,
+    /// The dependencies of the node, used for incremental compilation.
     dependencies: Vec<PathBuf>,
 }
 
@@ -59,6 +62,7 @@ impl Node {
         &self,
         processor: &Stuart,
         special_files: SpecialFiles,
+        dependencies: &mut Vec<(PathBuf, Vec<PathBuf>)>,
     ) -> Result<Node, TracebackError<ProcessError>> {
         let output = if self.name() != "root.html" && self.name() != "md.html" {
             match self.parsed_contents() {
@@ -74,6 +78,10 @@ impl Node {
             ProcessOutput::default()
         };
 
+        if !output.dependencies.is_empty() {
+            dependencies.push((self.source().to_path_buf(), output.dependencies));
+        }
+
         Ok(Node::File {
             name: output.name.unwrap_or_else(|| self.name().to_string()),
             contents: output
@@ -81,29 +89,11 @@ impl Node {
                 .unwrap_or_else(|| self.contents().unwrap().to_vec()),
             parsed_contents: ParsedContents::None,
             metadata: {
-                let mut contents = if processor.config.save_metadata {
-                    self.parsed_contents()
-                        .to_json()
-                        .unwrap_or_else(|| Value::Object(Vec::new()))
+                if processor.config.save_metadata {
+                    self.parsed_contents().to_json()
                 } else {
-                    Value::Object(Vec::new())
-                };
-
-                contents["dependencies"] = Value::Array(
-                    output
-                        .dependencies
-                        .iter()
-                        .map(|p| {
-                            Value::String(
-                                p.to_string_lossy()
-                                    .trim_start_matches("\\\\?\\")
-                                    .to_string(),
-                            )
-                        })
-                        .collect(),
-                );
-
-                Some(contents)
+                    None
+                }
             },
             source: self.source().to_path_buf(),
             crc32: self.crc32().unwrap(),
@@ -117,7 +107,7 @@ impl Node {
         processor: &Stuart,
         special_files: SpecialFiles,
     ) -> Result<ProcessOutput, TracebackError<ProcessError>> {
-        let (root, root_source) = special_files.root.ok_or(TracebackError {
+        let (root, _) = special_files.root.ok_or(TracebackError {
             path: self.source().to_path_buf(),
             line: 0,
             column: 0,
@@ -127,7 +117,7 @@ impl Node {
         let mut token_iter = TokenIter::new(tokens);
         let mut stack: Vec<StackFrame> = vec![StackFrame::new("base")];
         let mut sections: Vec<(String, Vec<u8>)> = Vec::new();
-        let mut dependencies: Vec<PathBuf> = vec![root_source];
+        let mut dependencies: Vec<PathBuf> = Vec::new();
         let mut scope = Scope {
             tokens: &mut token_iter,
             stack: &mut stack,
@@ -177,14 +167,14 @@ impl Node {
         processor: &Stuart,
         special_files: SpecialFiles,
     ) -> Result<ProcessOutput, TracebackError<ProcessError>> {
-        let (root, root_source) = special_files.root.ok_or(TracebackError {
+        let (root, _) = special_files.root.ok_or(TracebackError {
             path: self.source().to_path_buf(),
             line: 0,
             column: 0,
             kind: ProcessError::MissingHtmlRoot,
         })?;
 
-        let (md_tokens, md_source) = special_files.md.ok_or(TracebackError {
+        let (md_tokens, _) = special_files.md.ok_or(TracebackError {
             path: self.source().to_path_buf(),
             line: 0,
             column: 0,
@@ -198,7 +188,7 @@ impl Node {
             frame
         }];
         let mut sections: Vec<(String, Vec<u8>)> = Vec::new();
-        let mut dependencies: Vec<PathBuf> = vec![root_source, md_source];
+        let mut dependencies: Vec<PathBuf> = Vec::new();
         let mut scope = Scope {
             tokens: &mut token_iter,
             stack: &mut stack,

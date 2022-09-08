@@ -73,7 +73,11 @@ impl Testcase {
         };
 
         // Process the input node.
-        let out = self.input.process(&stuart, specials).unwrap();
+        let mut dependencies = Vec::new();
+        let out = self
+            .input
+            .process(&stuart, specials, &mut dependencies)
+            .unwrap();
 
         match (&out, &self.output) {
             (
