@@ -22,12 +22,26 @@ pub mod parsers {
     pub use insert::InsertParser as Insert;
     pub use r#for::ForParser as For;
     pub use timetoread::TimeToReadParser as TimeToRead;
+
+    #[macro_use]
+    mod r#if;
+
+    if_parsers![
+        ifeq, IfEq, ==;
+        ifne, IfNe, !=;
+        ifgt, IfGt, >;
+        ifge, IfGe, >=;
+        iflt, IfLt, <;
+        ifle, IfLe, <;
+    ];
 }
 
 use crate::parse::{ParseError, RawFunction};
 use crate::process::error::ProcessError;
 use crate::process::Scope;
 use crate::TracebackError;
+
+use humphrey_json::Value;
 
 use std::fmt::Debug;
 
@@ -64,6 +78,65 @@ pub trait Function: Debug + Send + Sync {
     fn execute(&self, scope: &mut Scope) -> Result<(), TracebackError<ProcessError>>;
 }
 
+/// Represents an input into a function.
+#[derive(Debug, Clone)]
+enum Input {
+    /// A variable name.
+    Variable(String),
+    /// A string literal.
+    String(String),
+    /// An integer literal.
+    Integer(i32),
+}
+
+impl Input {
+    /// If the input is a variable, converts it to its value in the given scope.
+    ///
+    /// If the input is not a variable, returns the input unchanged.
+    fn evaluate_variable(&self, scope: &mut Scope) -> Option<Self> {
+        match self {
+            Input::Variable(name) => match scope.get_variable(name) {
+                Some(Value::String(s)) => Some(Input::String(s)),
+                Some(Value::Number(i)) => Some(Input::Integer(i as i32)),
+                _ => None,
+            },
+            x => Some(x.clone()),
+        }
+    }
+}
+
+impl PartialEq for Input {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Variable(l0), Self::Variable(r0)) => l0 == r0,
+            (Self::String(l0), Self::String(r0)) => l0 == r0,
+            (Self::Integer(l0), Self::Integer(r0)) => l0 == r0,
+            _ => false,
+        }
+    }
+}
+
+impl PartialOrd for Input {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match (self, other) {
+            (Self::Variable(_), Self::Variable(_)) => None,
+            (Self::String(_), Self::String(_)) => None,
+            (Self::Integer(i), Self::Integer(j)) => i.partial_cmp(j),
+            _ => None,
+        }
+    }
+}
+
+impl ToString for Input {
+    fn to_string(&self) -> String {
+        match self {
+            Input::Variable(v) => v.clone(),
+            Input::String(s) => s.clone(),
+            Input::Integer(i) => i.to_string(),
+        }
+    }
+}
+
 /// A macro which counts its arguments.
 macro_rules! count {
     () => { 0_usize };
@@ -91,7 +164,9 @@ macro_rules! quiet_assert {
     ($cond:expr) => {
         match $cond {
             true => Ok(()),
-            false => Err(ParseError::AssertionError(stringify!($cond).to_string())),
+            false => Err($crate::parse::ParseError::AssertionError(
+                stringify!($cond).to_string(),
+            )),
         }
     };
 }
@@ -99,13 +174,5 @@ macro_rules! quiet_assert {
 /// Returns true if the string is an identifier of a function.
 #[inline]
 pub fn is_ident(s: &str) -> bool {
-    s == "begin"
-        || s == "dateformat"
-        || s == "end"
-        || s == "excerpt"
-        || s == "for"
-        || s == "ifdefined"
-        || s == "import"
-        || s == "insert"
-        || s == "timetoread"
+    crate::FUNCTION_PARSERS.iter().any(|f| f.name() == s)
 }

@@ -37,6 +37,12 @@ define_functions![
     functions::parsers::Import,
     functions::parsers::Insert,
     functions::parsers::TimeToRead,
+    functions::parsers::IfEq,
+    functions::parsers::IfNe,
+    functions::parsers::IfGt,
+    functions::parsers::IfGe,
+    functions::parsers::IfLt,
+    functions::parsers::IfLe,
 ];
 
 /// The project builder.
