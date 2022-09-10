@@ -12,7 +12,7 @@ use self::stack::StackFrame;
 
 use crate::fs::{Node, ParsedContents};
 use crate::parse::{LocatableToken, ParsedMarkdown, Token};
-use crate::{SpecialFiles, Stuart};
+use crate::{Environment, Stuart};
 
 use humphrey_json::Value;
 
@@ -48,17 +48,14 @@ impl Node {
     pub fn process(
         &self,
         processor: &Stuart,
-        special_files: SpecialFiles,
+        env: Environment,
     ) -> Result<Node, TracebackError<ProcessError>> {
         let (new_contents, new_name) = if self.name() != "root.html" && self.name() != "md.html" {
             match self.parsed_contents() {
-                ParsedContents::Html(tokens) => (
-                    Some(self.process_html(tokens, processor, special_files)?),
-                    None,
-                ),
-                ParsedContents::Markdown(md) => {
-                    self.process_markdown(md, processor, special_files)?
+                ParsedContents::Html(tokens) => {
+                    (Some(self.process_html(tokens, processor, env)?), None)
                 }
+                ParsedContents::Markdown(md) => self.process_markdown(md, processor, env)?,
                 _ => (None, None),
             }
         } else {
@@ -83,9 +80,9 @@ impl Node {
         &self,
         tokens: &[LocatableToken],
         processor: &Stuart,
-        special_files: SpecialFiles,
+        env: Environment,
     ) -> Result<Vec<u8>, TracebackError<ProcessError>> {
-        let root = special_files.root.ok_or(TracebackError {
+        let root = env.root.ok_or(TracebackError {
             path: self.source().to_path_buf(),
             line: 0,
             column: 0,
@@ -93,7 +90,7 @@ impl Node {
         })?;
 
         let mut token_iter = TokenIter::new(tokens);
-        let mut stack: Vec<StackFrame> = vec![StackFrame::new("base")];
+        let mut stack: Vec<StackFrame> = vec![processor.base.as_ref().unwrap().clone()];
         let mut sections: Vec<(String, Vec<u8>)> = Vec::new();
         let mut scope = Scope {
             tokens: &mut token_iter,
@@ -122,7 +119,7 @@ impl Node {
 
         let mut token_iter = TokenIter::new(root);
 
-        scope.stack.push(StackFrame::new("base2"));
+        scope.stack.push(processor.base.as_ref().unwrap().clone());
         scope.tokens = &mut token_iter;
 
         while let Some(token) = scope.tokens.next() {
@@ -137,16 +134,16 @@ impl Node {
         &self,
         md: &ParsedMarkdown,
         processor: &Stuart,
-        special_files: SpecialFiles,
+        env: Environment,
     ) -> Result<NodeModifications, TracebackError<ProcessError>> {
-        let root = special_files.root.ok_or(TracebackError {
+        let root = env.root.ok_or(TracebackError {
             path: self.source().to_path_buf(),
             line: 0,
             column: 0,
             kind: ProcessError::MissingHtmlRoot,
         })?;
 
-        let md_tokens = special_files.md.ok_or(TracebackError {
+        let md_tokens = env.md.ok_or(TracebackError {
             path: self.source().to_path_buf(),
             line: 0,
             column: 0,
@@ -154,11 +151,14 @@ impl Node {
         })?;
 
         let mut token_iter = TokenIter::new(md_tokens);
-        let mut stack: Vec<StackFrame> = vec![{
-            let mut frame = StackFrame::new("base");
-            frame.add_variable("self", md.to_value());
-            frame
-        }];
+
+        let mut stack: Vec<StackFrame> = vec![processor
+            .base
+            .as_ref()
+            .unwrap()
+            .clone()
+            .with_variable("self", md.to_value())];
+
         let mut sections: Vec<(String, Vec<u8>)> = Vec::new();
         let mut scope = Scope {
             tokens: &mut token_iter,
@@ -187,7 +187,7 @@ impl Node {
 
         let mut token_iter = TokenIter::new(root);
 
-        scope.stack.push(StackFrame::new("base2"));
+        scope.stack.push(processor.base.as_ref().unwrap().clone());
         scope.tokens = &mut token_iter;
 
         while let Some(token) = scope.tokens.next() {

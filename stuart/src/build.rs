@@ -105,7 +105,7 @@ pub fn build(
     let build_start = Instant::now();
     let fs = Node::new(path.parent().unwrap().join("content"), true)?;
     let mut stuart = Stuart::new(fs, config.clone());
-    stuart.build()?;
+    stuart.build(stuart_env.to_string())?;
     let build_duration = build_start.elapsed().as_micros();
 
     for dir in ["static", "temp"] {

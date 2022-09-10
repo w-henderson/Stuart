@@ -1,7 +1,7 @@
 #[macro_use]
 mod r#macro;
 
-use crate::{Config, Node, SpecialFiles, Stuart};
+use crate::{Config, Environment, Node, Stuart};
 
 use std::path::PathBuf;
 
@@ -51,7 +51,8 @@ impl Testcase {
     pub fn run(&self) {
         // Create a mock processing scenario.
         let stuart = Stuart::new(self.context.clone(), Config::default());
-        let specials = SpecialFiles {
+        let env = Environment {
+            vars: &[],
             root: self
                 .context
                 .get_at_path(&PathBuf::from("root.html"))
@@ -67,7 +68,7 @@ impl Testcase {
         };
 
         // Process the input node.
-        let out = self.input.process(&stuart, specials).unwrap();
+        let out = self.input.process(&stuart, env).unwrap();
 
         match (&out, &self.output) {
             (
