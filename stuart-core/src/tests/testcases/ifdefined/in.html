@@ -1,9 +1,13 @@
 {{ begin("main") }}
 <ul>
 {{ for($country, "data.json") }}
+
 {{ ifdefined($country.independence) }}
 <li>{{ $country.name }} gained independence on {{ $country.independence }}.</li>
+{{ else() }}
+<li>{{ $country.name }} does not celebrate an independence day.</li>
 {{ end(ifdefined) }}
+
 {{ end(for) }}
 </ul>
 {{ end("main") }}

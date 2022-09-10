@@ -60,36 +60,19 @@ impl Function for EndFunction {
 
                 scope.sections.push((self.label.clone(), frame.output));
             }
-            (false, "for") => {
+            (false, label) => {
                 let frame = scope
                     .stack
                     .pop()
                     .ok_or_else(|| self_token.traceback(ProcessError::EndWithoutBegin))?;
 
-                if !frame.name.starts_with("for:") {
+                if !frame.name.starts_with(&format!("{}:", label)) {
                     return Err(self_token.traceback(ProcessError::EndWithoutBegin));
                 }
 
                 scope
                     .output(frame.output)
                     .map_err(|e| self_token.traceback(e))?;
-            }
-            (false, "ifdefined") => {
-                let frame = scope
-                    .stack
-                    .pop()
-                    .ok_or_else(|| self_token.traceback(ProcessError::EndWithoutBegin))?;
-
-                if !frame.name.starts_with("ifdefined:") {
-                    return Err(self_token.traceback(ProcessError::EndWithoutBegin));
-                }
-
-                scope
-                    .output(frame.output)
-                    .map_err(|e| self_token.traceback(e))?;
-            }
-            _ => {
-                return Err(self_token.traceback(ProcessError::EndWithoutBegin));
             }
         }
 

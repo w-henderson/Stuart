@@ -20,8 +20,9 @@ pub use fs::Node;
 use crate::fs::ParsedContents;
 use crate::parse::LocatableToken;
 use crate::process::error::ProcessError;
+use crate::process::stack::StackFrame;
 
-use humphrey_json::prelude::*;
+use humphrey_json::{prelude::*, Value};
 
 use std::fmt::Debug;
 use std::path::{Path, PathBuf};
@@ -29,6 +30,7 @@ use std::path::{Path, PathBuf};
 define_functions![
     functions::parsers::Begin,
     functions::parsers::DateFormat,
+    functions::parsers::Else,
     functions::parsers::End,
     functions::parsers::Excerpt,
     functions::parsers::For,
@@ -36,6 +38,12 @@ define_functions![
     functions::parsers::Import,
     functions::parsers::Insert,
     functions::parsers::TimeToRead,
+    functions::parsers::IfEq,
+    functions::parsers::IfNe,
+    functions::parsers::IfGt,
+    functions::parsers::IfGe,
+    functions::parsers::IfLt,
+    functions::parsers::IfLe,
 ];
 
 /// The project builder.
@@ -47,13 +55,15 @@ pub struct Stuart {
     pub out: Option<Node>,
     /// The configuration of the project.
     pub config: Config,
+    /// The base stack frame for each node.
+    pub base: Option<StackFrame>,
 }
 
-/// The nearest "special files" to a given node.
-///
-/// These are the root HTML file and the root markdown HTML file.
-#[derive(Clone, Copy, Debug)]
-pub struct SpecialFiles<'a> {
+/// The environment of the build.
+#[derive(Copy, Clone, Debug)]
+pub struct Environment<'a> {
+    /// The environment variables.
+    pub vars: &'a [(String, String)],
     /// The root HTML file.
     pub root: Option<&'a [LocatableToken]>,
     /// The root markdown HTML file.
@@ -80,18 +90,36 @@ impl Stuart {
             fs,
             out: None,
             config,
+            base: None,
         }
     }
 
     /// Attempts to build the project.
-    pub fn build(&mut self) -> Result<(), TracebackError<ProcessError>> {
-        let specials = SpecialFiles {
+    pub fn build(&mut self, stuart_env: String) -> Result<(), TracebackError<ProcessError>> {
+        let vars = {
+            let mut env = std::env::vars().collect::<Vec<_>>();
+            env.push(("STUART_ENV".into(), stuart_env));
+            env
+        };
+
+        let env = Environment {
+            vars: &vars,
             md: None,
             root: None,
         }
         .update_from_children(self.fs.children().unwrap());
 
-        self.out = Some(self.build_node(&self.fs, specials)?);
+        let base = StackFrame::new("base").with_variable(
+            "env",
+            Value::Object(
+                vars.iter()
+                    .map(|(k, v)| (k.clone(), Value::String(v.clone())))
+                    .collect(),
+            ),
+        );
+
+        self.base = Some(base);
+        self.out = Some(self.build_node(&self.fs, env)?);
 
         Ok(())
     }
@@ -137,7 +165,7 @@ impl Stuart {
     fn build_node(
         &self,
         node: &Node,
-        specials: SpecialFiles,
+        env: Environment,
     ) -> Result<Node, TracebackError<ProcessError>> {
         match node {
             Node::Directory {
@@ -145,10 +173,10 @@ impl Stuart {
                 children,
                 source,
             } => {
-                let specials = specials.update_from_children(children);
+                let env = env.update_from_children(children);
                 let children = children
                     .iter()
-                    .map(|n| self.build_node(n, specials))
+                    .map(|n| self.build_node(n, env))
                     .collect::<Result<Vec<_>, TracebackError<ProcessError>>>()?;
 
                 Ok(Node::Directory {
@@ -157,26 +185,26 @@ impl Stuart {
                     source: source.clone(),
                 })
             }
-            Node::File { .. } => node.process(self, specials),
+            Node::File { .. } => node.process(self, env),
         }
     }
 }
 
-impl<'a> SpecialFiles<'a> {
-    /// Updates the special files from a list of children.
-    fn update_from_children(&self, children: &'a [Node]) -> SpecialFiles {
-        let mut specials = *self;
+impl<'a> Environment<'a> {
+    /// Updates the environment from a list of children, adding the closest root HTML files.
+    fn update_from_children(&self, children: &'a [Node]) -> Self {
+        let mut env = *self;
 
         for child in children {
             match child.name() {
                 "root.html" => {
-                    specials.root = match child.parsed_contents() {
+                    env.root = match child.parsed_contents() {
                         ParsedContents::Html(tokens) => Some(tokens),
                         _ => None,
                     }
                 }
                 "md.html" => {
-                    specials.md = match child.parsed_contents() {
+                    env.md = match child.parsed_contents() {
                         ParsedContents::Html(tokens) => Some(tokens),
                         _ => None,
                     }
@@ -185,6 +213,6 @@ impl<'a> SpecialFiles<'a> {
             }
         }
 
-        specials
+        env
     }
 }

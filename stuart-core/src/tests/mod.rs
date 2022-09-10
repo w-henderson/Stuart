@@ -1,7 +1,8 @@
 #[macro_use]
 mod r#macro;
 
-use crate::{Config, Node, SpecialFiles, Stuart};
+use crate::process::stack::StackFrame;
+use crate::{Config, Environment, Node, Stuart};
 
 use std::path::PathBuf;
 
@@ -12,7 +13,8 @@ define_testcases![
     for_loop_nested,
     dateformat,
     excerpt,
-    ifdefined
+    ifdefined,
+    conditionals
 ];
 
 pub struct Testcase {
@@ -23,12 +25,16 @@ pub struct Testcase {
 
 impl Testcase {
     pub fn new(name: &str) -> Self {
-        // Load the base context from the `_base` testcase.
-        let mut context = load_base();
-
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("src/tests/testcases")
             .join(name);
+
+        // Load the base context from the `_base` testcase.
+        let mut context = load_base();
+
+        // Merge with the specific context for this testcase.
+        let specific_context = Node::create_from_dir(&path, true).unwrap();
+        context.merge(specific_context).unwrap();
 
         let input = Node::create_from_file(path.join("in.html"), true).unwrap();
         let output = Node::create_from_file(path.join("out.html"), true).unwrap();
@@ -50,8 +56,11 @@ impl Testcase {
 
     pub fn run(&self) {
         // Create a mock processing scenario.
-        let stuart = Stuart::new(self.context.clone(), Config::default());
-        let specials = SpecialFiles {
+        let mut stuart = Stuart::new(self.context.clone(), Config::default());
+        stuart.base = Some(StackFrame::new("base"));
+
+        let env = Environment {
+            vars: &[],
             root: self
                 .context
                 .get_at_path(&PathBuf::from("root.html"))
@@ -67,7 +76,7 @@ impl Testcase {
         };
 
         // Process the input node.
-        let out = self.input.process(&stuart, specials).unwrap();
+        let out = self.input.process(&stuart, env).unwrap();
 
         match (&out, &self.output) {
             (

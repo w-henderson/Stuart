@@ -41,7 +41,7 @@ impl Function for IfDefinedFunction {
     fn execute(&self, scope: &mut Scope) -> Result<(), TracebackError<ProcessError>> {
         let self_token = scope.tokens.current().unwrap().clone();
 
-        let defined = scope
+        let mut defined = scope
             .get_variable(&self.variable_name)
             .map(|v| !matches!(v, Value::Null))
             .unwrap_or(false);
@@ -57,14 +57,18 @@ impl Function for IfDefinedFunction {
                 .next()
                 .ok_or_else(|| self_token.traceback(ProcessError::UnexpectedEndOfFile))?;
 
+            let function_name = token.as_function().map(|f| f.name().to_string());
+
             if defined
-                || (token
-                    .as_function()
-                    .map(|f| f.name() == "end")
-                    .unwrap_or(false)
+                || ((function_name == Some("end".to_string())
+                    || function_name == Some("else".to_string()))
                     && scope.stack.len() == stack_height + 1)
             {
                 token.process(scope)?;
+
+                if function_name == Some("else".to_string()) {
+                    defined = !defined;
+                }
             }
         }
 

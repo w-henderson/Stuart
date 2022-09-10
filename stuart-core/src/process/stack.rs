@@ -5,7 +5,7 @@ use humphrey_json::Value;
 /// Represents a stack frame.
 ///
 /// When the stack frame is popped, the output of the frame is appended to the output of the frame below it.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct StackFrame {
     /// The name of the stack frame, used for identification.
     pub name: String,
@@ -28,6 +28,12 @@ impl StackFrame {
     /// Adds a variable to the stack frame.
     pub fn add_variable(&mut self, name: impl AsRef<str>, value: Value) {
         self.variables.push((name.as_ref().to_string(), value));
+    }
+
+    /// Adds a variable to the stack frame.
+    pub fn with_variable(mut self, name: impl AsRef<str>, value: Value) -> Self {
+        self.add_variable(name, value);
+        self
     }
 
     /// Returns the value of the variable with the given name.
