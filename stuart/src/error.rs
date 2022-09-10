@@ -246,6 +246,7 @@ impl StuartError for ProcessError {
             ProcessError::MissingMarkdownRoot => "cannot find `md.html` template".display(buf),
             ProcessError::StackError => "stack error".display(buf),
             ProcessError::EndWithoutBegin => "no matching `begin` for `end`".display(buf),
+            ProcessError::ElseWithoutIf => "no matching `if` for `else`".display(buf),
             ProcessError::NotJsonArray => "not a json array".display(buf),
             ProcessError::InvalidDate => "invalid date".display(buf),
             ProcessError::UnexpectedEndOfFile => "unexpected end of file".display(buf),
@@ -296,6 +297,7 @@ impl StuartError for ProcessError {
                 Some("this shouldn't have happened, please open an issue!".to_string())
             }
             ProcessError::EndWithoutBegin => None,
+            ProcessError::ElseWithoutIf => None,
             ProcessError::NotJsonArray => {
                 Some("only arrays can be used in this context".to_string())
             }
