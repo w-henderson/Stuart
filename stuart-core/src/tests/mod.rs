@@ -1,6 +1,7 @@
 #[macro_use]
 mod r#macro;
 
+use crate::process::stack::StackFrame;
 use crate::{Config, Environment, Node, Stuart};
 
 use std::path::PathBuf;
@@ -50,7 +51,9 @@ impl Testcase {
 
     pub fn run(&self) {
         // Create a mock processing scenario.
-        let stuart = Stuart::new(self.context.clone(), Config::default());
+        let mut stuart = Stuart::new(self.context.clone(), Config::default());
+        stuart.base = Some(StackFrame::new("base"));
+
         let env = Environment {
             vars: &[],
             root: self
