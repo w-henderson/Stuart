@@ -182,6 +182,8 @@ All variables are JSON values, so object values can be accessed using dot notati
 {{ $variable.property }}
 ```
 
+Environment variables are accessible within templates using the `$env` variable, so for example, to get the value of the `STUART_ENV` environment variable, you would use `{{ $env.STUART_ENV }}`.
+
 ### Functions
 
 Functions are called using the following syntax:
@@ -200,6 +202,8 @@ Stuart currently supports the following functions:
 | `import` | Imports a JSON file as a variable. | `import($data, "data.json")` |
 | `for` | Iterates over a JSON array or a directory of markdown files. The loop is ended with `end(for)`. | `for($tag, "tags.json")`, `for($post, "posts/", limit=3, order="desc", sortby="date")`, `for($item, $array)` |
 | `dateformat` | Formats a date using the [chrono](https://docs.rs/chrono/0.4.19/chrono/format/strftime/index.html) format string. The date input can be any kind of formatted date or timestamp. | `dateformat($date, "%Y-%m-%d")` |
+| `if[eq,ne,gt,ge,lt,le]` | Performs a comparison between two values. The block is ended with `end(if[eq,ne,...])`. | `ifeq($a, $b)`, `ifge($age, 18)` |
 | `ifdefined` | Checks if a variable is defined. The block is ended with `end(ifdefined)`. | `ifdefined($variable)`, `ifdefined($variable.property)` |
+| `else` | Starts the else block for a conditional. | `else()` |
 | `excerpt` | Creates an excerpt from a string. | `excerpt($post.content, 100)` |
 | `timetoread` | Calculates the time to read a string in minutes. | `timetoread($post.content)` |
