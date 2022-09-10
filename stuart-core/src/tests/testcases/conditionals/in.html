@@ -19,10 +19,14 @@
 
 {{ ifge($data.age, 18) }}
 <p>Is an adult</p>
+{{ else() }}
+<p>Is not an adult</p>
 {{ end(ifge) }}
 
 {{ iflt($data.age, 18) }}
 <p>Is a child</p>
+{{ else() }}
+<p>Is not a child</p>
 {{ end(iflt) }}
 
 {{ end("main") }}
