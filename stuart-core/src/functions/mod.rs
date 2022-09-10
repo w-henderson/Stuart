@@ -5,6 +5,7 @@
 pub mod parsers {
     mod begin;
     mod dateformat;
+    mod r#else;
     mod end;
     mod excerpt;
     mod r#for;
@@ -20,6 +21,7 @@ pub mod parsers {
     pub use ifdefined::IfDefinedParser as IfDefined;
     pub use import::ImportParser as Import;
     pub use insert::InsertParser as Insert;
+    pub use r#else::ElseParser as Else;
     pub use r#for::ForParser as For;
     pub use timetoread::TimeToReadParser as TimeToRead;
 

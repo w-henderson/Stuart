@@ -210,7 +210,7 @@ fn parse_function(parser: &mut Parser) -> Result<Token, TracebackError<ParseErro
             // Parse the value.
             let argument = RawArgument::parse(value).map_err(|e| parser.traceback(e))?;
             named_args.push((name.to_string(), argument));
-        } else {
+        } else if !arg.is_empty() {
             // Ensure that there are no positional arguments after any named arguments.
             if !named_args.is_empty() {
                 return Err(parser.traceback(ParseError::PositionalArgAfterNamedArg));

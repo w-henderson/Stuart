@@ -54,7 +54,7 @@ macro_rules! if_parsers {
                             self_token.traceback($crate::process::ProcessError::UndefinedVariable(self.input_2.to_string()))
                         })?;
 
-                        let condition = input_1 $cond input_2;
+                        let mut condition = input_1 $cond input_2;
 
                         let frame = $crate::process::stack::StackFrame::new(format!(
                             "{}:{}:{}",
@@ -72,14 +72,18 @@ macro_rules! if_parsers {
                                 .next()
                                 .ok_or_else(|| self_token.traceback($crate::process::ProcessError::UnexpectedEndOfFile))?;
 
+                            let function_name = token.as_function().map(|f| f.name().to_string());
+
                             if condition
-                                || (token
-                                    .as_function()
-                                    .map(|f| f.name() == "end")
-                                    .unwrap_or(false)
+                                || ((function_name == Some("end".to_string())
+                                    || function_name == Some("else".to_string()))
                                     && scope.stack.len() == stack_height + 1)
                             {
                                 token.process(scope)?;
+
+                                if function_name == Some("else".to_string()) {
+                                    condition = !condition;
+                                }
                             }
                         }
 

@@ -30,6 +30,7 @@ use std::path::{Path, PathBuf};
 define_functions![
     functions::parsers::Begin,
     functions::parsers::DateFormat,
+    functions::parsers::Else,
     functions::parsers::End,
     functions::parsers::Excerpt,
     functions::parsers::For,

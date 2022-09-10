@@ -15,6 +15,8 @@ pub enum ProcessError {
     StackError,
     /// An `end(x)` function was called without a previous `begin(x)`.
     EndWithoutBegin,
+    /// An `else()` function was called without a previous `ifeq`, `ifne`, etc.
+    ElseWithoutIf,
     /// A JSON array was expected but not found.
     NotJsonArray,
     /// An invalid date was found.
