@@ -13,7 +13,8 @@ define_testcases![
     for_loop_nested,
     dateformat,
     excerpt,
-    ifdefined
+    ifdefined,
+    conditionals
 ];
 
 pub struct Testcase {
@@ -24,12 +25,16 @@ pub struct Testcase {
 
 impl Testcase {
     pub fn new(name: &str) -> Self {
-        // Load the base context from the `_base` testcase.
-        let mut context = load_base();
-
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("src/tests/testcases")
             .join(name);
+
+        // Load the base context from the `_base` testcase.
+        let mut context = load_base();
+
+        // Merge with the specific context for this testcase.
+        let specific_context = Node::create_from_dir(&path, true).unwrap();
+        context.merge(specific_context).unwrap();
 
         let input = Node::create_from_file(path.join("in.html"), true).unwrap();
         let output = Node::create_from_file(path.join("out.html"), true).unwrap();

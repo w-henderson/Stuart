@@ -1,0 +1,28 @@
+{{ begin("main") }}
+{{ import($data, "testcase.json") }}
+
+{{ ifeq($data.name, "Stuart") }}
+<p>Name is Stuart</p>
+{{ end(ifeq) }}
+
+{{ ifne($data.name, "Stuart") }}
+<p>Name is not Stuart</p>
+{{ end(ifne) }}
+
+{{ ifeq($data.name, "Humphrey") }}
+<p>Name is Humphrey</p>
+{{ end(ifeq) }}
+
+{{ ifne($data.name, "Humphrey") }}
+<p>Name is not Humphrey</p>
+{{ end(ifne) }}
+
+{{ ifge($data.age, 18) }}
+<p>Is an adult</p>
+{{ end(ifge) }}
+
+{{ iflt($data.age, 18) }}
+<p>Is a child</p>
+{{ end(iflt) }}
+
+{{ end("main") }}
