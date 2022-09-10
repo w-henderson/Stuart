@@ -57,7 +57,8 @@ macro_rules! if_parsers {
                         let condition = input_1 $cond input_2;
 
                         let frame = $crate::process::stack::StackFrame::new(format!(
-                            "ifeq:{}:{}",
+                            "{}:{}:{}",
+                            stringify!($name),
                             self.input_1.to_string(),
                             self.input_2.to_string()
                         ));
