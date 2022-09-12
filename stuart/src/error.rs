@@ -2,9 +2,7 @@
 
 use crate::scripts::ScriptError;
 
-use stuart_core::parse::ParseError;
-use stuart_core::process::ProcessError;
-use stuart_core::{fs, TracebackError};
+use stuart_core::error::{Error, FsError, ParseError, ProcessError, TracebackError};
 
 use termcolor::{Buffer, BufferWriter, Color, ColorChoice, ColorSpec, WriteColor};
 
@@ -51,6 +49,33 @@ pub trait StuartError {
 
         self.display(&mut buffer);
         writer.print(&buffer).unwrap();
+    }
+}
+
+impl StuartError for Error {
+    fn display(&self, buf: &mut Buffer) {
+        match self {
+            Error::Fs(e) => e.display(buf),
+            Error::Parse(e) => e.display(buf),
+            Error::Process(e) => e.display(buf),
+            Error::NotBuilt => "not built".display(buf),
+            Error::MetadataNotEnabled => {
+                "metadata saving not enabled in configuration".display(buf)
+            }
+        }
+    }
+
+    fn help(&self) -> Option<String> {
+        match self {
+            Error::Fs(e) => e.help(),
+            Error::Parse(e) => e.help(),
+            Error::Process(e) => e.help(),
+            Error::NotBuilt => None,
+            Error::MetadataNotEnabled => Some(
+                "enable metadata by adding `save_metadata = true` to your `stuart.toml`"
+                    .to_string(),
+            ),
+        }
     }
 }
 
@@ -140,14 +165,13 @@ impl<T: Clone + Debug + StuartError> StuartError for TracebackError<T> {
     }
 }
 
-impl StuartError for fs::Error {
+impl StuartError for FsError {
     fn display(&self, buf: &mut Buffer) {
         match self {
-            fs::Error::NotFound(s) => format!("not found: {}", s).display(buf),
-            fs::Error::Read => "could not read from filesystem".display(buf),
-            fs::Error::Write => "could not write to filesystem".display(buf),
-            fs::Error::Parse(e) => e.display(buf),
-            fs::Error::Conflict(a, b) => {
+            FsError::NotFound(s) => format!("not found: {}", s).display(buf),
+            FsError::Read => "could not read from filesystem".display(buf),
+            FsError::Write => "could not write to filesystem".display(buf),
+            FsError::Conflict(a, b) => {
                 let (rel_a, rel_b) = if let Ok(dir) = current_dir().and_then(std::fs::canonicalize)
                 {
                     (
@@ -170,19 +194,18 @@ impl StuartError for fs::Error {
 
     fn help(&self) -> Option<String> {
         match self {
-            fs::Error::NotFound(_) => {
+            FsError::NotFound(_) => {
                 Some("ensure that the file path is typed correctly".to_string())
             }
-            fs::Error::Read => Some(
+            FsError::Read => Some(
                 "are any other processes using the file or directory, such as the terminal?"
                     .to_string(),
             ),
-            fs::Error::Write => Some(
+            FsError::Write => Some(
                 "are any other processes using the file or directory, such as the terminal?"
                     .to_string(),
             ),
-            fs::Error::Parse(_) => None,
-            fs::Error::Conflict(_, _) => None,
+            FsError::Conflict(_, _) => None,
         }
     }
 }
@@ -250,11 +273,6 @@ impl StuartError for ProcessError {
             ProcessError::NotJsonArray => "not a json array".display(buf),
             ProcessError::InvalidDate => "invalid date".display(buf),
             ProcessError::UnexpectedEndOfFile => "unexpected end of file".display(buf),
-            ProcessError::NotBuilt => "not built".display(buf),
-            ProcessError::MetadataNotEnabled => {
-                "metadata saving not enabled in configuration".display(buf)
-            }
-            ProcessError::Fs(e) => e.display(buf),
             ProcessError::VariableAlreadyExists(name) => {
                 format!("variable already exists: `{}`", name).display(buf)
             }
@@ -305,12 +323,6 @@ impl StuartError for ProcessError {
                 Some("ensure the date is valid and the format is correct".to_string())
             }
             ProcessError::UnexpectedEndOfFile => None,
-            ProcessError::NotBuilt => None,
-            ProcessError::MetadataNotEnabled => Some(
-                "enable metadata by adding `save_metadata = true` to your `stuart.toml`"
-                    .to_string(),
-            ),
-            ProcessError::Fs(e) => e.help(),
             ProcessError::VariableAlreadyExists(_) => {
                 Some("variables in Stuart are immutable (for the time being)".to_string())
             }

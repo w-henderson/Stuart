@@ -1,10 +1,10 @@
 //! Provides the `stuart build` functionality.
 
-use crate::config;
 use crate::error::StuartError;
 use crate::scripts::Scripts;
+use crate::{config, plugins};
 
-use stuart_core::{Node, Stuart, TracebackError};
+use stuart_core::{Config, Node, Stuart, TracebackError};
 
 use std::fs::{read_to_string, remove_dir_all};
 use std::path::PathBuf;
@@ -50,6 +50,11 @@ pub fn build(
             _ => return Err(Box::new(format!("failed to parse manifest:\n  {}", e))),
         },
     };
+
+    let plugins = plugins::load(&config.dependencies)
+        .map_err(|e| format!("could not load plugin(s): {}", e))?;
+
+    let config: Config = config.into();
 
     let scripts = Scripts::from_directory(path.parent().unwrap().join("scripts"))
         .with_environment_variables(vec![
@@ -103,9 +108,12 @@ pub fn build(
     );
 
     let build_start = Instant::now();
-    let fs = Node::new(path.parent().unwrap().join("content"), true)?;
-    let mut stuart = Stuart::new(fs, config.clone());
+
+    let mut stuart = Stuart::new(path.parent().unwrap().join("content"))
+        .with_config(config.clone())
+        .with_plugins(plugins);
     stuart.build(stuart_env.to_string())?;
+
     let build_duration = build_start.elapsed().as_micros();
 
     for dir in ["static", "temp"] {

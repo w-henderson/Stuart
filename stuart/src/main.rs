@@ -10,6 +10,7 @@ mod build;
 mod config;
 mod error;
 mod new;
+mod plugins;
 mod scripts;
 mod serve;
 

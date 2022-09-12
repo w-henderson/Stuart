@@ -6,39 +6,42 @@ use stuart_core::Config;
 
 use serde_derive::Deserialize;
 
+use std::collections::HashMap;
+
 /// Raw, unparsed configuration information from the TOML file.
-#[derive(Deserialize)]
-struct RawConfig {
+#[derive(Clone, Deserialize)]
+pub struct RawConfig {
     /// Site configuration.
-    site: Site,
+    pub site: Site,
     /// Settings configuration.
-    settings: Option<Settings>,
+    pub settings: Option<Settings>,
+    /// Dependencies.
+    pub dependencies: Option<HashMap<String, String>>,
 }
 
 /// Raw, unparsed site configuration information from the TOML file.
-#[derive(Deserialize)]
-struct Site {
+#[derive(Clone, Deserialize)]
+pub struct Site {
     /// The name of the site.
-    name: String,
+    pub name: String,
     /// The author of the site.
-    author: Option<String>,
+    pub author: Option<String>,
 }
 
 /// Raw, unparsed settings configuration information from the TOML file.
-#[derive(Deserialize)]
-struct Settings {
+#[derive(Clone, Deserialize)]
+pub struct Settings {
     /// Whether to remove HTML extensions by creating folders containing `index.html` files.
-    strip_extensions: Option<bool>,
+    pub strip_extensions: Option<bool>,
     /// Whether to save JSON files.
-    save_data_files: Option<bool>,
+    pub save_data_files: Option<bool>,
     /// Whether to output the build metadata.
-    save_metadata: Option<bool>,
+    pub save_metadata: Option<bool>,
 }
 
 /// Attempts to load the configuration from the given TOML file.
-pub fn load(string: &str) -> Result<Config, toml::de::Error> {
-    let raw_config: RawConfig = toml::from_str(string)?;
-    Ok(raw_config.into())
+pub fn load(string: &str) -> Result<RawConfig, toml::de::Error> {
+    toml::from_str(string)
 }
 
 impl From<RawConfig> for Config {
