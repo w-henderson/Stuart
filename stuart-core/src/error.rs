@@ -1,10 +1,16 @@
+//! Provides error types.
+
 use std::fmt::Debug;
 use std::path::PathBuf;
 
+/// Represents an error.
 #[derive(Clone, Debug)]
 pub enum Error {
+    /// An error with the filesystem.
     Fs(FsError),
+    /// An error during parsing.
     Parse(TracebackError<ParseError>),
+    /// An error during processing.
     Process(TracebackError<ProcessError>),
 
     /// The project has not yet been built, but its build output is required for this operation.

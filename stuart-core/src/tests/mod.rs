@@ -2,7 +2,7 @@
 mod r#macro;
 
 use crate::process::stack::StackFrame;
-use crate::{Config, Environment, Node, Stuart};
+use crate::{Environment, Node, Stuart};
 
 use std::path::PathBuf;
 

@@ -62,6 +62,7 @@ pub struct Stuart {
     pub config: Config,
     /// The base stack frame for each node.
     pub base: Option<StackFrame>,
+    /// The plugins to be used by Stuart.
     pub plugins: Option<Box<dyn Manager>>,
 }
 
@@ -89,6 +90,7 @@ impl Stuart {
         }
     }
 
+    /// Creates a new builder from a virtual filesystem tree.
     pub fn new_from_node(node: Node) -> Self {
         Self {
             dir: node.source().to_path_buf(),
@@ -100,11 +102,13 @@ impl Stuart {
         }
     }
 
+    /// Sets the configuration to use.
     pub fn with_config(mut self, config: Config) -> Self {
         self.config = config;
         self
     }
 
+    /// Sets the plugin manager to use.
     pub fn with_plugins<T>(mut self, plugins: T) -> Self
     where
         T: Manager + 'static,
@@ -114,6 +118,8 @@ impl Stuart {
     }
 
     /// Attempts to build the project.
+    ///
+    /// If the input directory has not yet been loaded into memory, this will happen now.
     pub fn build(&mut self, stuart_env: String) -> Result<(), Error> {
         if self.input.is_none() {
             self.input = Some(match self.plugins {
