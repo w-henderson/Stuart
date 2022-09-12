@@ -11,7 +11,7 @@
 
 <hr><br>
 
-Stuart is a very fast and flexible static site generator, with build times as low as 0.1ms per page. It is written in Rust, and is designed be easier to use than other SSGs, while still beating them in the benchmarks. Stuart's simple yet powerful templating system allows you to define complex logic for your site, sourcing data from Markdown and JSON files as well as the template files, before rendering it all to static HTML. For even more complex projects, you can augment Stuart with custom build scripts in any language that integrate with the core build system. Support for plugins written in Rust is coming soon.
+Stuart is a very fast and flexible static site generator, with build times as low as 0.1ms per page. It is written in Rust, and is designed be easier to use than other SSGs, while still beating them in the benchmarks. Stuart's simple yet powerful templating system allows you to define complex logic for your site, sourcing data from Markdown and JSON files as well as the template files, before rendering it all to static HTML. For even more complex projects, you can augment Stuart with custom build scripts in any language that integrate with the core build system, as well as custom plugins.
 
 **Note:** Stuart is an extremely new project, so functionality and documentation are still being added. For the time being, documentation is limited to this README.
 
@@ -31,6 +31,7 @@ Stuart is a very fast and flexible static site generator, with build times as lo
 - [Templating Language](#templating-language)
   - [Variables](#variables)
   - [Functions](#functions)
+- [Plugins](#plugins)
 
 ## Getting Started
 
@@ -57,6 +58,13 @@ In the `stuart.toml` file, you can set configuration options for your project in
 | `strip_extensions` | Whether to remove HTML file extensions by creating folders with `index.html` files | `true` |
 | `save_data_files` | Whether to save the JSON data files to the output directory | `false` |
 | `save_metadata` | Whether to output metadata about the build, used to integrate with build scripts | `false` |
+
+You can declare plugin dependencies in the `[dependencies]` section using a similar syntax to Cargo, for example:
+
+```toml
+[dependencies]
+my_plugin = "/path/to/plugin.so"
+```
 
 ## Project Structure
 
@@ -207,3 +215,33 @@ Stuart currently supports the following functions:
 | `else` | Starts the else block for a conditional. | `else()` |
 | `excerpt` | Creates an excerpt from a string. | `excerpt($post.content, 100)` |
 | `timetoread` | Calculates the time to read a string in minutes. | `timetoread($post.content)` |
+
+## Plugins
+
+Stuart supports dynamically-loaded plugins, which are Rust libraries that provide additional functionality to Stuart. Plugins dependencies are specified in the `stuart.toml` file as described earlier. Plugin functions can be called from within templates by prefixing the function name with the plugin name, for example:
+
+```html
+{{ my_plugin::my_function() }}
+```
+
+### Plugin API
+
+Plugins are defined using the `define_plugin!` macro in the core crate. They can currently only add functions to Stuart, and these are implemented in exactly the same was as the built-in functions. Please refer to the [built-in functions](https://github.com/w-henderson/Stuart/tree/master/stuart-core/src/functions/parsers) for implementation examples. An example of calling the macro is as follows:
+
+```rs
+declare_plugin! {
+    name: "my_plugin",
+    version: "1.0.0",
+    functions: [
+        SomeFunctionParser,
+        AnotherFunctionParser
+    ],
+}
+```
+
+You must configure the Cargo project to be compiled as a `cdylib` library, as follows (in `Cargo.toml`):
+
+```toml
+[lib]
+crate-type = ["cdylib"]
+```
