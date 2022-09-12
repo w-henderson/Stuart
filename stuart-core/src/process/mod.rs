@@ -1,12 +1,11 @@
 //! Provides processing functionality.
 
-pub mod error;
 pub mod iter;
 pub mod stack;
 
-pub use self::error::ProcessError;
+pub use crate::error::ProcessError;
+use crate::error::TracebackError;
 
-use self::error::TracebackError;
 use self::iter::TokenIter;
 use self::stack::StackFrame;
 

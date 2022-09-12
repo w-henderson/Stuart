@@ -123,7 +123,9 @@ impl Function for ForFunction {
             ForFunctionSourceType::MarkdownDirectory => {
                 let directory = scope
                     .processor
-                    .fs
+                    .input
+                    .as_ref()
+                    .unwrap()
                     .get_at_path(&PathBuf::from(self.source.clone()))
                     .ok_or_else(|| {
                         self_token.traceback(ProcessError::NotFound(self.source.clone()))
@@ -146,7 +148,9 @@ impl Function for ForFunction {
             ForFunctionSourceType::JSONFile => {
                 let file = scope
                     .processor
-                    .fs
+                    .input
+                    .as_ref()
+                    .unwrap()
                     .get_at_path(&PathBuf::from(self.source.clone()))
                     .ok_or_else(|| {
                         self_token.traceback(ProcessError::NotFound(self.source.clone()))

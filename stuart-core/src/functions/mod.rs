@@ -38,8 +38,8 @@ pub mod parsers {
     ];
 }
 
+use crate::error::ProcessError;
 use crate::parse::{ParseError, RawFunction};
-use crate::process::error::ProcessError;
 use crate::process::Scope;
 use crate::TracebackError;
 

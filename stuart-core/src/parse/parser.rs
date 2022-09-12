@@ -1,6 +1,6 @@
 //! Provides a low-level parser.
 
-use super::error::{ParseError, TracebackError};
+use crate::error::{ParseError, TracebackError};
 
 use std::iter::Peekable;
 use std::path::Path;
