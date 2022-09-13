@@ -20,7 +20,6 @@ pub use config::Config;
 pub use error::{Error, TracebackError};
 pub use fs::Node;
 
-use crate::error::ProcessError;
 use crate::fs::ParsedContents;
 use crate::parse::LocatableToken;
 use crate::plugins::Manager;
@@ -151,10 +150,7 @@ impl Stuart {
         );
 
         self.base = Some(base);
-        self.output = Some(
-            self.build_node(self.input.as_ref().unwrap(), env)
-                .map_err(Error::Process)?,
-        );
+        self.output = Some(self.build_node(self.input.as_ref().unwrap(), env)?);
 
         Ok(())
     }
@@ -197,11 +193,7 @@ impl Stuart {
     }
 
     /// Recursively builds an input node and its descendants, returning an output node.
-    fn build_node(
-        &self,
-        node: &Node,
-        env: Environment,
-    ) -> Result<Node, TracebackError<ProcessError>> {
+    fn build_node(&self, node: &Node, env: Environment) -> Result<Node, Error> {
         match node {
             Node::Directory {
                 name,
@@ -212,7 +204,7 @@ impl Stuart {
                 let children = children
                     .iter()
                     .map(|n| self.build_node(n, env))
-                    .collect::<Result<Vec<_>, TracebackError<ProcessError>>>()?;
+                    .collect::<Result<Vec<_>, Error>>()?;
 
                 Ok(Node::Directory {
                     name: name.clone(),

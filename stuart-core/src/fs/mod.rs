@@ -5,9 +5,11 @@
 //!   as simply a function that maps `Node -> Node`. This function is called [`Node::process`].
 
 use crate::error::{FsError, ParseError};
-use crate::parse::{parse_html, parse_markdown, LocatableToken, ParsedMarkdown};
+use crate::parse::{parse_html, parse_markdown};
 use crate::plugins::Manager;
 use crate::{Config, Error, TracebackError};
+
+pub use crate::parse::ParsedContents;
 
 use humphrey_json::prelude::*;
 use humphrey_json::Value;
@@ -16,6 +18,7 @@ use std::fmt::Debug;
 use std::fs::{create_dir, metadata, read, read_dir, remove_dir_all, write};
 use std::io::ErrorKind;
 use std::path::{Component, Path, PathBuf};
+use std::rc::Rc;
 
 /// Represents a node in the virtual filesystem tree.
 #[derive(Clone)]
@@ -42,19 +45,6 @@ pub enum Node {
         /// The filesystem source of the directory.
         source: PathBuf,
     },
-}
-
-/// The parsed contents of a file.
-#[derive(Clone, Debug)]
-pub enum ParsedContents {
-    /// An HTML file, parsed into template tokens.
-    Html(Vec<LocatableToken>),
-    /// A markdown file, parsed into frontmatter and HTML.
-    Markdown(ParsedMarkdown),
-    /// A JSON file.
-    Json(Value),
-    /// The file was not parsed.
-    None,
 }
 
 impl Node {
@@ -220,7 +210,25 @@ impl Node {
                         })
                     })?,
                 ),
-                _ => ParsedContents::None,
+                Some(extension) => {
+                    let mut result = ParsedContents::None;
+
+                    if let Some(plugins) = plugins {
+                        'outer: for plugin in plugins.plugins() {
+                            for parser in &plugin.parsers {
+                                if parser.extensions().contains(&extension) {
+                                    result = ParsedContents::Custom(Rc::new(
+                                        parser.parse(&contents, file).map_err(Error::Plugin)?,
+                                    ));
+                                    break 'outer;
+                                }
+                            }
+                        }
+                    }
+
+                    result
+                }
+                None => ParsedContents::None,
             }
         } else {
             ParsedContents::None
@@ -419,42 +427,6 @@ impl Debug for Node {
                 .field("children", children)
                 .field("source", source)
                 .finish(),
-        }
-    }
-}
-
-impl ParsedContents {
-    /// Returns the template tokens of the parsed contents, if applicable.
-    pub fn tokens(&self) -> Option<&[LocatableToken]> {
-        match self {
-            Self::Html(tokens) => Some(tokens),
-            _ => None,
-        }
-    }
-
-    /// Returns the parsed markdown data, if applicable.
-    pub fn markdown(&self) -> Option<&ParsedMarkdown> {
-        match self {
-            Self::Markdown(markdown) => Some(markdown),
-            _ => None,
-        }
-    }
-
-    /// Converts the parsed contents to a JSON value, if applicable.
-    pub fn to_json(&self) -> Option<Value> {
-        match self {
-            ParsedContents::Html(_) => None,
-            ParsedContents::None => None,
-
-            ParsedContents::Markdown(md) => Some(json!({
-                "type": "markdown",
-                "value": (md.frontmatter_to_value())
-            })),
-
-            ParsedContents::Json(v) => Some(json!({
-                "type": "json",
-                "value": (v.clone())
-            })),
         }
     }
 }

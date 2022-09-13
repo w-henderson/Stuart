@@ -12,6 +12,8 @@ pub enum Error {
     Parse(TracebackError<ParseError>),
     /// An error during processing.
     Process(TracebackError<ProcessError>),
+    /// An error from a plugin.
+    Plugin(String),
 
     /// The project has not yet been built, but its build output is required for this operation.
     NotBuilt,

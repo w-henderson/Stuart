@@ -1,6 +1,13 @@
 //! Provides the plugin system for Stuart.
 
 use crate::functions::FunctionParser;
+use crate::process::ProcessOutput;
+use crate::{Environment, Stuart};
+
+use humphrey_json::prelude::*;
+use humphrey_json::Value;
+
+use std::path::Path;
 
 /// Represents a type that can manage plugins.
 ///
@@ -24,6 +31,28 @@ pub struct Plugin {
     pub version: String,
     /// The functions provided by the plugin.
     pub functions: Vec<Box<dyn FunctionParser>>,
+    /// The node parsers provided by the plugin.
+    pub parsers: Vec<Box<dyn NodeParser>>,
+}
+
+/// Represents a type that can parse a raw filesystem node.
+pub trait NodeParser {
+    /// Returns the file extensions that this parser can parse.
+    fn extensions(&self) -> Vec<&'static str>;
+
+    /// Parses the node, returning the parsed contents within a type that implements `NodeProcessor` so they can then be processed.
+    fn parse(&self, contents: &[u8], path: &Path) -> Result<Box<dyn NodeProcessor>, String>;
+}
+
+/// Represents a type that contains the parsed contents of a node, which can be processed.
+pub trait NodeProcessor {
+    /// Processes the parsed contents in the given environment, retuning the processed output.
+    fn process(&self, processor: &Stuart, env: Environment) -> Result<ProcessOutput, String>;
+
+    /// Returns a JSON representation of the parsed contents to appear within the metadata of the build.
+    fn to_json(&self) -> Value {
+        json!({ "type": "custom" })
+    }
 }
 
 impl<T> Manager for T
@@ -46,6 +75,9 @@ where
 ///         SomeFunctionParser,
 ///         AnotherFunctionParser
 ///     ],
+///     parsers: [
+///         SomeNodeParser
+///     ],
 /// }
 /// ```
 #[macro_export]
@@ -56,6 +88,9 @@ macro_rules! declare_plugin {
         functions: [
             $($function:expr),*
         ],
+        parsers: [
+            $($parser:expr),*
+        ],
     ) => {
         #[no_mangle]
         pub extern "C" fn _stuart_plugin_init() -> *mut ::stuart_core::plugins::Plugin {
@@ -65,6 +100,11 @@ macro_rules! declare_plugin {
                 functions: vec![
                     $(
                         Box::new($function)
+                    ),*
+                ],
+                parsers: vec![
+                    $(
+                        Box::new($parser)
                     ),*
                 ],
             };

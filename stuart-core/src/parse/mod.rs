@@ -1,5 +1,6 @@
 //! Provides parsing functionality.
 
+mod contents;
 mod function;
 mod markdown;
 mod parser;
@@ -7,6 +8,7 @@ mod parser;
 use crate::functions::Function;
 use crate::plugins::Manager;
 
+pub use self::contents::ParsedContents;
 pub use self::function::{RawArgument, RawFunction};
 pub use self::markdown::{parse_markdown, ParsedMarkdown};
 pub use self::parser::Parser;
