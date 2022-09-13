@@ -6,4 +6,5 @@ declare_plugin! {
     name: "demo",
     version: "0.1.0",
     functions: [function::DemoParser],
+    parsers: [],
 }
