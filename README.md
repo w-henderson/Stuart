@@ -226,7 +226,7 @@ Stuart supports dynamically-loaded plugins, which are Rust libraries that provid
 
 ### Plugin API
 
-Plugins are defined using the `define_plugin!` macro in the core crate. They can currently only add functions to Stuart, and these are implemented in exactly the same was as the built-in functions. Please refer to the [built-in functions](https://github.com/w-henderson/Stuart/tree/master/stuart-core/src/functions/parsers) for implementation examples. An example of calling the macro is as follows:
+Plugins are defined using the `define_plugin!` macro in the core crate. They can add functions to Stuart, which are implemented in exactly the same way as the built-in functions, and can also add parsers for new file types. Please refer to the [built-in functions](https://github.com/w-henderson/Stuart/tree/master/stuart-core/src/functions/parsers) for function implementation examples, and to the [image optimization plugin source code](https://github.com/w-henderson/Stuart/tree/master/plugins/imgopt) to see how parsers for new file types can be used. An example of calling the macro is as follows:
 
 ```rs
 declare_plugin! {
@@ -236,6 +236,9 @@ declare_plugin! {
         SomeFunctionParser,
         AnotherFunctionParser
     ],
+    parsers: [
+        MyParser
+    ]
 }
 ```
 
