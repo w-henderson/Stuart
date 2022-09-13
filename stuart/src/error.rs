@@ -58,6 +58,7 @@ impl StuartError for Error {
             Error::Fs(e) => e.display(buf),
             Error::Parse(e) => e.display(buf),
             Error::Process(e) => e.display(buf),
+            Error::Plugin(e) => e.display(buf),
             Error::NotBuilt => "not built".display(buf),
             Error::MetadataNotEnabled => {
                 "metadata saving not enabled in configuration".display(buf)
@@ -70,6 +71,7 @@ impl StuartError for Error {
             Error::Fs(e) => e.help(),
             Error::Parse(e) => e.help(),
             Error::Process(e) => e.help(),
+            Error::Plugin(_) => None,
             Error::NotBuilt => None,
             Error::MetadataNotEnabled => Some(
                 "enable metadata by adding `save_metadata = true` to your `stuart.toml`"
