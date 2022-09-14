@@ -42,3 +42,27 @@ pub fn init_repository(path: &str) -> bool {
         .map(|output| output.status.success())
         .unwrap_or(false)
 }
+
+pub fn exists(url: &str) -> bool {
+    Command::new("git")
+        .args(&["ls-remote", url])
+        .output()
+        .map(|output| output.status.success())
+        .unwrap_or(false)
+}
+
+pub fn clone(url: &str, path: &str) -> bool {
+    Command::new("git")
+        .args(&["clone", url, path, "--depth", "1"])
+        .output()
+        .map(|output| output.status.success())
+        .unwrap_or(false)
+}
+
+pub fn pull(path: &str) -> bool {
+    Command::new("git")
+        .args(&["-C", path, "pull"])
+        .output()
+        .map(|output| output.status.success())
+        .unwrap_or(false)
+}
