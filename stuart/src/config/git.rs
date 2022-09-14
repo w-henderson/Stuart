@@ -43,6 +43,7 @@ pub fn init_repository(path: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// Checks whether a remote repository exists at the given URL.
 pub fn exists(url: &str) -> bool {
     Command::new("git")
         .args(&["ls-remote", url])
@@ -51,6 +52,9 @@ pub fn exists(url: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// Clones the repository at the given URL into the given directory.
+///
+/// Returns `true` if the clone was successful, `false` otherwise.
 pub fn clone(url: &str, path: &str) -> bool {
     Command::new("git")
         .args(&["clone", url, path, "--depth", "1"])
@@ -59,6 +63,9 @@ pub fn clone(url: &str, path: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// Attempts to pull the latest changes from the remote repository into the given directory.
+///
+/// Returns `true` if the pull was successful, `false` otherwise.
 pub fn pull(path: &str) -> bool {
     Command::new("git")
         .args(&["-C", path, "pull"])

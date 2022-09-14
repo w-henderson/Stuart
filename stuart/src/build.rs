@@ -20,6 +20,8 @@ pub struct BuildInfo {
     pub scripts_duration: f64,
     /// The time taken to write the site to disk, in milliseconds.
     pub fs_duration: f64,
+    /// The time taken to download and compile any plugins, in milliseconds.
+    pub plugins_duration: f64,
 }
 
 /// Builds the site with the given configuration.
@@ -51,7 +53,9 @@ pub fn build(
         },
     };
 
+    let plugins_start = Instant::now();
     let plugins = plugins::load(&config.dependencies, path.parent().unwrap())?;
+    let plugins_duration = plugins_start.elapsed().as_micros();
 
     let config: Config = config.into();
 
@@ -141,20 +145,26 @@ pub fn build(
     scripts.execute_post_build()?;
     let post_build_duration = post_build_start.elapsed().as_micros();
 
-    let total_duration =
-        ((pre_build_duration + build_duration + save_duration + post_build_duration) / 100) as f64
-            / 10.0;
+    let total_duration = ((plugins_duration
+        + pre_build_duration
+        + build_duration
+        + save_duration
+        + post_build_duration)
+        / 100) as f64
+        / 10.0;
     let build_duration = (build_duration / 100) as f64 / 10.0;
     let fs_duration = (save_duration / 100) as f64 / 10.0;
     let scripts_duration = ((pre_build_duration + post_build_duration) / 100) as f64 / 10.0;
+    let plugins_duration = (plugins_duration / 100) as f64 / 10.0;
 
     log!(
         "Finished",
-        "build in {}ms ({}ms build, {}ms scripts, {}ms filesystem)",
+        "build in {}ms ({}ms build, {}ms scripts, {}ms filesystem, {}ms plugins)",
         total_duration,
         build_duration,
         scripts_duration,
-        fs_duration
+        fs_duration,
+        plugins_duration
     );
 
     Ok(BuildInfo {
@@ -162,5 +172,6 @@ pub fn build(
         build_duration,
         scripts_duration,
         fs_duration,
+        plugins_duration,
     })
 }

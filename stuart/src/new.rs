@@ -40,6 +40,9 @@ pub fn new(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
 
     if !no_git {
         git::init_repository(&format!("./{}", name));
+
+        write(path.join(".gitignore"), b"dist/\n_build/\nmetadata.json\n")
+            .map_err(|_| FsError::Write)?;
     }
 
     log!("Created", "new Stuart website `{}`", name);

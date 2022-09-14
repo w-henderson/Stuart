@@ -1,9 +1,12 @@
+//! Provides functionality for finding plugins from a source string.
+
 use crate::scripts::ScriptError;
 
 use std::fs::{read_dir, read_to_string};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+/// Attempts to find the named Cargo project within the given directory.
 pub fn find_cargo_project(root: impl AsRef<Path>, name: &str) -> Option<PathBuf> {
     let root = root.as_ref();
 
@@ -25,6 +28,9 @@ pub fn find_cargo_project(root: impl AsRef<Path>, name: &str) -> Option<PathBuf>
     None
 }
 
+/// Attempts to build the Cargo project at the given path, returning the path to the compiled plugin.
+///
+/// **Note:** this function may not work correctly in the case of workspace projects.
 pub fn build_cargo_project(root: impl AsRef<Path>) -> Result<PathBuf, ScriptError> {
     let manifest = root.as_ref().join("Cargo.toml");
 
@@ -60,6 +66,7 @@ pub fn build_cargo_project(root: impl AsRef<Path>) -> Result<PathBuf, ScriptErro
     Ok(target_file)
 }
 
+/// Attempts to get the name of the Cargo project defined by the given manifest.
 fn get_project_name(manifest: &Path) -> Option<String> {
     let manifest = read_to_string(manifest).ok()?;
     let toml: toml::Value = toml::from_str(&manifest).ok()?;
