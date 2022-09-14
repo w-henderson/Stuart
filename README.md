@@ -7,6 +7,12 @@
     A Blazingly-Fast Static Site Generator.<br>
     <a href="https://github.com/w-henderson/Stuart/releases"><strong>Download Now »</strong></a>
   </p><br>
+
+  <img src="https://img.shields.io/badge/language-rust-b07858?style=for-the-badge&logo=rust" style="margin-right:5px">
+  <img src="https://img.shields.io/github/workflow/status/w-henderson/Stuart/CLI?style=for-the-badge&label=cli" style="margin-right:5px">
+  <img src="https://img.shields.io/github/workflow/status/w-henderson/Stuart/Core?style=for-the-badge&label=core" style="margin-right:5px"><br>
+  <img src="https://img.shields.io/crates/v/stuart?label=stuart&style=for-the-badge" style="margin-right:5px">
+  <img src="https://img.shields.io/crates/v/stuart_core?label=stuart-core&style=for-the-badge" style="margin-right:5px"><br><br>
 </div>
 
 <hr><br>
@@ -32,12 +38,15 @@ Stuart is a very fast and flexible static site generator, with build times as lo
   - [Variables](#variables)
   - [Functions](#functions)
 - [Plugins](#plugins)
+  - [Plugin API](#plugin-api)
 
 ## Getting Started
 
 ### Installation
 
 Stuart is available as a pre-built binary for Windows and Linux. You can download the latest release from the [releases page](https://github.com/w-henderson/Stuart/releases). Alternatively, you can build the code from scratch using Rust's package manager, Cargo. To do this, clone the repository and run `cargo build --release`.
+
+Stuart requires Git to be installed for many of its features to work.
 
 ### Creating a Project
 
@@ -64,7 +73,11 @@ You can declare plugin dependencies in the `[dependencies]` section using a simi
 ```toml
 [dependencies]
 my_plugin = "/path/to/plugin.so"
+my_other_plugin = "/path/to/cargo/project/"
+my_remote_plugin = "https://github.com/username/plugin"
 ```
+
+Stuart will automatically detect whether the plugin needs to be cloned from a Git repository and whether it needs to be compiled. If the plugin does require compilation, Stuart requires the Rust toolchain to be installed.
 
 ## Project Structure
 
