@@ -10,6 +10,7 @@ mod build;
 mod config;
 mod error;
 mod new;
+mod plugins;
 mod scripts;
 mod serve;
 
@@ -152,6 +153,7 @@ fn bench(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
     let mut total_build = 0.0;
     let mut total_scripts = 0.0;
     let mut total_fs = 0.0;
+    let mut total_plugins = 0.0;
 
     LOGGER.get().unwrap().enabled.store(false, Ordering::SeqCst);
 
@@ -165,6 +167,7 @@ fn bench(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
         total_build += result.build_duration;
         total_scripts += result.scripts_duration;
         total_fs += result.fs_duration;
+        total_plugins += result.plugins_duration;
 
         progress.next();
     }
@@ -177,11 +180,13 @@ fn bench(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
     let avg_build = total_build / (iters as f64);
     let avg_scripts = total_scripts / (iters as f64);
     let avg_fs = total_fs / (iters as f64);
+    let avg_plugins = total_plugins / (iters as f64);
 
     log!("Total:", "{:.2}ms mean", avg);
     log!("Build:", "{:.2}ms mean", avg_build);
     log!("Scripts:", "{:.2}ms mean", avg_scripts);
     log!("Filesystem:", "{:.2}ms mean", avg_fs);
+    log!("Plugins:", "{:.2}ms mean", avg_plugins);
 
     Ok(())
 }
@@ -194,6 +199,10 @@ fn clean() -> Result<(), Box<dyn StuartError>> {
 
     if PathBuf::from("dist").exists() {
         remove_dir_all("dist").map_err(|_| "failed to remove output directory")?;
+    }
+
+    if PathBuf::from("_build").exists() {
+        remove_dir_all("_build").map_err(|_| "failed to remove build directory")?;
     }
 
     if PathBuf::from("metadata.json").exists() {

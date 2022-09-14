@@ -1,16 +1,19 @@
 //! Provides parsing functionality.
 
-mod error;
+mod contents;
 mod function;
 mod markdown;
 mod parser;
 
 use crate::functions::Function;
+use crate::plugins::Manager;
 
-pub use self::error::{ParseError, TracebackError};
+pub use self::contents::ParsedContents;
 pub use self::function::{RawArgument, RawFunction};
 pub use self::markdown::{parse_markdown, ParsedMarkdown};
 pub use self::parser::Parser;
+
+pub use crate::error::{ParseError, TracebackError};
 
 use std::fmt::Debug;
 use std::ops::Deref;
@@ -91,6 +94,7 @@ impl Token {
 pub fn parse_html(
     input: &str,
     path: &Path,
+    plugins: Option<&dyn Manager>,
 ) -> Result<Vec<LocatableToken>, TracebackError<ParseError>> {
     let chars = input.chars();
     let mut parser = Parser::new(chars, path);
@@ -114,7 +118,7 @@ pub fn parse_html(
 
         let token = match parser.peek() {
             Some('$') => parse_variable(&mut parser)?,
-            Some(_) => parse_function(&mut parser)?,
+            Some(_) => parse_function(&mut parser, plugins)?,
             None => return Err(parser.traceback(ParseError::UnexpectedEOF)),
         };
 
@@ -158,9 +162,12 @@ fn parse_variable(parser: &mut Parser) -> Result<Token, TracebackError<ParseErro
 }
 
 /// Attempts to parse a function token from the parser.
-fn parse_function(parser: &mut Parser) -> Result<Token, TracebackError<ParseError>> {
+fn parse_function(
+    parser: &mut Parser,
+    plugins: Option<&dyn Manager>,
+) -> Result<Token, TracebackError<ParseError>> {
     let (line, column) = parser.location();
-    let function_name = parser.extract_while(|c| c.is_alphanumeric() || c == '_');
+    let function_name = parser.extract_while(|c| c.is_alphanumeric() || c == '_' || c == ':');
 
     if function_name.is_empty() {
         return Err(parser.traceback(ParseError::InvalidFunctionName("<empty>".to_string())));
@@ -243,6 +250,20 @@ fn parse_function(parser: &mut Parser) -> Result<Token, TracebackError<ParseErro
                     .parse(raw_function)
                     .map_err(|e| parser.traceback(e))?,
             )));
+        }
+    }
+
+    if let Some(plugins) = plugins {
+        for plugin in plugins.plugins() {
+            for function in &plugin.functions {
+                if function_name == format!("{}::{}", &plugin.name, function.name()) {
+                    return Ok(Token::Function(Rc::new(
+                        function
+                            .parse(raw_function)
+                            .map_err(|e| parser.traceback(e))?,
+                    )));
+                }
+            }
         }
     }
 

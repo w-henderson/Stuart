@@ -1,18 +1,17 @@
 //! Provides processing functionality.
 
-pub mod error;
 pub mod iter;
 pub mod stack;
 
-pub use self::error::ProcessError;
+pub use crate::error::ProcessError;
+use crate::error::TracebackError;
 
-use self::error::TracebackError;
 use self::iter::TokenIter;
 use self::stack::StackFrame;
 
 use crate::fs::{Node, ParsedContents};
 use crate::parse::{LocatableToken, ParsedMarkdown, Token};
-use crate::{Environment, Stuart};
+use crate::{Environment, Error, Stuart};
 
 use humphrey_json::Value;
 
@@ -40,31 +39,40 @@ pub struct Scope<'a> {
     pub sections: &'a mut Vec<(String, Vec<u8>)>,
 }
 
-/// A tuple of a new body and a new name for a file.
-type NodeModifications = (Option<Vec<u8>>, Option<String>);
+/// The output of the processing stage.
+#[derive(Default)]
+pub struct ProcessOutput {
+    /// The new contents of the file, if they are to be changed.
+    pub new_contents: Option<Vec<u8>>,
+    /// The new name of the file, if it is to be changed.
+    pub new_name: Option<String>,
+}
 
 impl Node {
     /// Processes a node, returning an output node.
-    pub fn process(
-        &self,
-        processor: &Stuart,
-        env: Environment,
-    ) -> Result<Node, TracebackError<ProcessError>> {
-        let (new_contents, new_name) = if self.name() != "root.html" && self.name() != "md.html" {
+    pub fn process(&self, processor: &Stuart, env: Environment) -> Result<Node, Error> {
+        let output = if self.name() != "root.html" && self.name() != "md.html" {
             match self.parsed_contents() {
-                ParsedContents::Html(tokens) => {
-                    (Some(self.process_html(tokens, processor, env)?), None)
+                ParsedContents::Html(tokens) => self
+                    .process_html(tokens, processor, env)
+                    .map_err(Error::Process)?,
+                ParsedContents::Markdown(md) => self
+                    .process_markdown(md, processor, env)
+                    .map_err(Error::Process)?,
+                ParsedContents::Custom(custom) => {
+                    custom.process(processor, env).map_err(Error::Plugin)?
                 }
-                ParsedContents::Markdown(md) => self.process_markdown(md, processor, env)?,
-                _ => (None, None),
+                _ => ProcessOutput::default(),
             }
         } else {
-            (None, None)
+            ProcessOutput::default()
         };
 
         Ok(Node::File {
-            name: new_name.unwrap_or_else(|| self.name().to_string()),
-            contents: new_contents.unwrap_or_else(|| self.contents().unwrap().to_vec()),
+            name: output.new_name.unwrap_or_else(|| self.name().to_string()),
+            contents: output
+                .new_contents
+                .unwrap_or_else(|| self.contents().unwrap().to_vec()),
             parsed_contents: ParsedContents::None,
             metadata: if processor.config.save_metadata {
                 self.parsed_contents().to_json()
@@ -81,7 +89,7 @@ impl Node {
         tokens: &[LocatableToken],
         processor: &Stuart,
         env: Environment,
-    ) -> Result<Vec<u8>, TracebackError<ProcessError>> {
+    ) -> Result<ProcessOutput, TracebackError<ProcessError>> {
         let root = env.root.ok_or(TracebackError {
             path: self.source().to_path_buf(),
             line: 0,
@@ -126,7 +134,10 @@ impl Node {
             token.process(&mut scope)?;
         }
 
-        Ok(stack.pop().unwrap().output)
+        Ok(ProcessOutput {
+            new_contents: Some(stack.pop().unwrap().output),
+            new_name: None,
+        })
     }
 
     /// Processes a markdown node, returning the processed output.
@@ -135,7 +146,7 @@ impl Node {
         md: &ParsedMarkdown,
         processor: &Stuart,
         env: Environment,
-    ) -> Result<NodeModifications, TracebackError<ProcessError>> {
+    ) -> Result<ProcessOutput, TracebackError<ProcessError>> {
         let root = env.root.ok_or(TracebackError {
             path: self.source().to_path_buf(),
             line: 0,
@@ -196,7 +207,10 @@ impl Node {
 
         let new_name = format!("{}.html", self.name().strip_suffix(".md").unwrap());
 
-        Ok((Some(stack.pop().unwrap().output), Some(new_name)))
+        Ok(ProcessOutput {
+            new_contents: Some(stack.pop().unwrap().output),
+            new_name: Some(new_name),
+        })
     }
 }
 

@@ -1,0 +1,13 @@
+[package]
+name = "imgopt"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+stuart_core = { path = "../../stuart-core" }
+oxipng = "6.0.1"
+
+[lib]
+crate-type = ["cdylib"]
+
+[workspace]
