@@ -3,13 +3,16 @@
 mod source;
 
 use crate::config::git;
+use crate::error::StuartError;
 
+use stuart_core::error::{Error, FsError};
 use stuart_core::plugins::{Manager, Plugin};
 
 use libloading::Library;
 
 use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::fs::create_dir_all;
 use std::path::{Path, PathBuf};
 
 /// Represents an external function that initializes a plugin.
@@ -38,7 +41,7 @@ pub struct DynamicPluginManager {
 pub fn load(
     plugins: &Option<HashMap<String, String>>,
     root: &Path,
-) -> Result<DynamicPluginManager, String> {
+) -> Result<DynamicPluginManager, Box<dyn StuartError>> {
     let mut manager = DynamicPluginManager::new();
 
     if let Some(plugins) = plugins {
@@ -51,8 +54,7 @@ pub fn load(
                 } else if source.join("Cargo.toml").exists() {
                     log!("Compiling", "plugin `{}`", name);
 
-                    let path = source::build_cargo_project(&source)
-                        .ok_or_else(|| format!("failed to build plugin `{}`", name))?;
+                    let path = source::build_cargo_project(&source)?;
 
                     unsafe { manager.load(path)? };
 
@@ -68,23 +70,26 @@ pub fn load(
                     .trim_start_matches("\\\\?\\")
                     .to_string();
 
-                if repo_dir.exists() {
+                if !repo_dir.exists() {
                     log!("Cloning", "plugin `{}` from `{}`", name, src);
 
+                    create_dir_all(root.join("_build/plugins"))
+                        .map_err(|_| Error::Fs(FsError::Write))?;
+
                     if !git::clone(src, &repo_dir_string) {
-                        return Err(format!(
+                        Err(format!(
                             "failed to clone Git repository for plugin `{}`",
                             name
-                        ));
+                        ))?;
                     }
                 } else {
                     log!("Pulling", "plugin `{}` from `{}`", name, src);
 
                     if !git::pull(&repo_dir_string) {
-                        return Err(format!(
+                        Err(format!(
                             "failed to pull Git repository for plugin `{}`",
                             name
-                        ));
+                        ))?;
                     }
                 }
 
@@ -93,15 +98,14 @@ pub fn load(
 
                 log!("Compiling", "plugin `{}`", name);
 
-                let path = source::build_cargo_project(&project)
-                    .ok_or_else(|| format!("failed to build plugin `{}`", name))?;
+                let path = source::build_cargo_project(&project)?;
 
                 unsafe { manager.load(path)? };
 
                 continue;
             }
 
-            return Err(format!("invalid source for plugin `{}`", name));
+            Err(format!("invalid source for plugin `{}`", name))?;
         }
     }
 

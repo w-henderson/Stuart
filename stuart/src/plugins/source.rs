@@ -1,3 +1,5 @@
+use crate::scripts::ScriptError;
+
 use std::fs::{read_dir, read_to_string};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -23,35 +25,39 @@ pub fn find_cargo_project(root: impl AsRef<Path>, name: &str) -> Option<PathBuf>
     None
 }
 
-pub fn build_cargo_project(root: impl AsRef<Path>) -> Option<PathBuf> {
+pub fn build_cargo_project(root: impl AsRef<Path>) -> Result<PathBuf, ScriptError> {
     let manifest = root.as_ref().join("Cargo.toml");
 
     let output = Command::new("cargo")
         .args(&["build", "--release", "--manifest-path"])
         .arg(&manifest)
         .output()
-        .ok()?;
+        .map_err(|_| ScriptError::CouldNotExecute("<build script>".to_string()))?;
 
     if !output.status.success() {
-        return None;
+        return Err(ScriptError::ScriptFailure {
+            script: format!(
+                "cargo build --release --manifest-path {}",
+                manifest.display()
+            ),
+            exit_code: output.status.code().unwrap_or(-1),
+            stdout: String::from_utf8_lossy(&output.stdout).trim().to_string(),
+            stderr: String::from_utf8_lossy(&output.stderr).trim().to_string(),
+        });
     }
 
     #[cfg(target_os = "windows")]
     let target_file = root
         .as_ref()
         .join("target/release")
-        .join(format!("{}.dll", get_project_name(&manifest)?));
+        .join(format!("{}.dll", get_project_name(&manifest).unwrap()));
     #[cfg(not(target_os = "windows"))]
     let target_file = root
         .as_ref()
         .join("target/release")
-        .join(format!("lib{}.so", get_project_name(&manifest)?));
+        .join(format!("lib{}.so", get_project_name(&manifest).unwrap()));
 
-    if target_file.exists() {
-        Some(target_file)
-    } else {
-        None
-    }
+    Ok(target_file)
 }
 
 fn get_project_name(manifest: &Path) -> Option<String> {

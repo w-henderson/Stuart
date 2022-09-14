@@ -344,7 +344,7 @@ impl StuartError for ScriptError {
     fn display(&self, buf: &mut Buffer) {
         match self {
             ScriptError::CouldNotExecute(script) => {
-                format!("could not execute script `{}`", script).display(buf)
+                format!("could not execute `{}`", script).display(buf)
             }
             ScriptError::ScriptFailure {
                 script,
@@ -352,12 +352,7 @@ impl StuartError for ScriptError {
                 stdout,
                 stderr,
             } => {
-                writeln!(
-                    buf,
-                    "script `{}` failed with exit code {}",
-                    script, exit_code
-                )
-                .unwrap();
+                writeln!(buf, "`{}` failed with exit code {}", script, exit_code).unwrap();
 
                 if !stdout.is_empty() {
                     buf.set_color(ColorSpec::new().set_fg(Some(Color::Red)).set_intense(true))

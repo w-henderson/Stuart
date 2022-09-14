@@ -51,8 +51,7 @@ pub fn build(
         },
     };
 
-    let plugins = plugins::load(&config.dependencies, path.parent().unwrap())
-        .map_err(|e| format!("could not load plugin(s): {}", e))?;
+    let plugins = plugins::load(&config.dependencies, path.parent().unwrap())?;
 
     let config: Config = config.into();
 
