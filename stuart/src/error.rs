@@ -275,6 +275,9 @@ impl StuartError for ProcessError {
             ProcessError::NotJsonArray => "not a json array".display(buf),
             ProcessError::InvalidDate => "invalid date".display(buf),
             ProcessError::UnexpectedEndOfFile => "unexpected end of file".display(buf),
+            ProcessError::FeatureNotEnabled(feature) => {
+                format!("feature not enabled: `{}`", feature).display(buf)
+            }
             ProcessError::VariableAlreadyExists(name) => {
                 format!("variable already exists: `{}`", name).display(buf)
             }
@@ -325,6 +328,9 @@ impl StuartError for ProcessError {
                 Some("ensure the date is valid and the format is correct".to_string())
             }
             ProcessError::UnexpectedEndOfFile => None,
+            ProcessError::FeatureNotEnabled(_) => {
+                Some("reinstall Stuart with the feature enabled".to_string())
+            }
             ProcessError::VariableAlreadyExists(_) => {
                 Some("variables in Stuart are immutable (for the time being)".to_string())
             }
