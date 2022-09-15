@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-stuart_core = { path = "../../stuart-core" }
+stuart_core = { path = "../../stuart-core", default-features = false }
 
 [lib]
 crate-type = ["cdylib"]

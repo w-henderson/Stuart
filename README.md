@@ -261,3 +261,10 @@ You must configure the Cargo project to be compiled as a `cdylib` library, as fo
 [lib]
 crate-type = ["cdylib"]
 ```
+
+The project must also have `stuart_core` as a dependency in order to use the `define_plugin!` macro and Stuart plugin types. You can disable default features to avoid compiling unnecessary dependencies, as follows:
+
+```toml
+[dependencies]
+stuart_core = { version = "*", default-features = false }
+```
