@@ -3,13 +3,11 @@ use crate::parse::{ParseError, RawFunction};
 use crate::process::{ProcessError, Scope};
 use crate::{quiet_assert, TracebackError};
 
-use chrono::{Local, NaiveTime};
-use dateparser::parse_with;
-
 /// Parses the `dateformat` function.
 pub struct DateFormatParser;
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct DateFormatFunction {
     variable_name: String,
     format: String,
@@ -46,7 +44,11 @@ impl Function for DateFormatFunction {
         "dateformat"
     }
 
+    #[cfg(feature = "date")]
     fn execute(&self, scope: &mut Scope) -> Result<(), TracebackError<ProcessError>> {
+        use chrono::{Local, NaiveTime};
+        use dateparser::parse_with;
+
         let self_token = scope.tokens.current().unwrap().clone();
 
         let variable = scope.get_variable(&self.variable_name).ok_or_else(|| {
@@ -73,5 +75,12 @@ impl Function for DateFormatFunction {
         scope.output(date).map_err(|e| self_token.traceback(e))?;
 
         Ok(())
+    }
+
+    #[cfg(not(feature = "date"))]
+    fn execute(&self, scope: &mut Scope) -> Result<(), TracebackError<ProcessError>> {
+        let self_token = scope.tokens.current().unwrap();
+
+        Err(self_token.traceback(ProcessError::FeatureNotEnabled("date".to_string())))
     }
 }

@@ -93,6 +93,8 @@ pub enum ProcessError {
     InvalidDate,
     /// The end of the file was reached unexpectedly.
     UnexpectedEndOfFile,
+    /// The crate feature required for this function was not enabled.
+    FeatureNotEnabled(String),
     /// The variable already exists.
     VariableAlreadyExists(String),
     /// The variable does not exist.
