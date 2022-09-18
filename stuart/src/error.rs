@@ -26,7 +26,7 @@ use std::io::Write;
 ///     |
 ///     = help: place positional arguments before named arguments
 /// ```
-pub trait StuartError {
+pub trait StuartError: Send {
     /// Displays the error into the buffer.
     fn display(&self, buf: &mut Buffer);
 
