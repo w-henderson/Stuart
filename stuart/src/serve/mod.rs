@@ -1,5 +1,6 @@
 //! Provides the `stuart dev` functionality.
 
+use crate::build::StuartContext;
 use crate::error::StuartError;
 use crate::logger::LOGGER;
 
@@ -43,9 +44,11 @@ pub fn serve(args: ArgMatches) -> Result<(), Box<dyn StuartError>> {
         .and_then(|p| p.parent().map(|p| p.to_path_buf()))
         .ok_or("invalid manifest path")?;
 
+    let mut ctx = StuartContext::init(&manifest_path, &output, "development")?;
+
     log!("Started", "development server at http://localhost:6904\n");
 
-    if let Err(e) = crate::build::build(&manifest_path, &output, "development") {
+    if let Err(e) = ctx.build() {
         error_handler(&e);
     }
 
@@ -57,14 +60,19 @@ pub fn serve(args: ArgMatches) -> Result<(), Box<dyn StuartError>> {
     let (tx, rx) = channel();
     let mut watcher = raw_watcher(tx).unwrap();
     watcher.watch(&path, RecursiveMode::Recursive).unwrap();
-    spawn(move || build_watcher(rx, streams, path, manifest_path, output));
 
-    let app = App::new_with_config(8, state)
-        .with_stateless_route("/*", serve_dir)
-        .with_websocket_route("/__ws", websocket_handler);
+    spawn(move || {
+        let app = App::new_with_config(8, state)
+            .with_stateless_route("/*", serve_dir)
+            .with_websocket_route("/__ws", websocket_handler);
 
-    app.run("127.0.0.1:6904")
-        .map_err(|_| Box::new("failed to start development server") as Box<dyn StuartError>)
+        app.run("127.0.0.1:6904")
+            .map_err(|_| Box::new("failed to start development server") as Box<dyn StuartError>)
+    });
+
+    build_watcher(rx, streams, path, ctx);
+
+    Ok(())
 }
 
 /// Watches for changes to the site, rebuilding and notifying subscribers when necessary.
@@ -72,8 +80,7 @@ fn build_watcher(
     rx: Receiver<RawEvent>,
     streams: Arc<Mutex<Vec<WebsocketStream>>>,
     path: PathBuf,
-    manifest_path: String,
-    output: String,
+    mut ctx: StuartContext,
 ) {
     loop {
         if let Ok(e) = rx.recv() {
@@ -85,6 +92,14 @@ fn build_watcher(
 
             println!();
 
+            if p.ends_with("stuart.toml") {
+                log!(
+                    "Detected",
+                    "configuration change, please restart the server"
+                );
+                continue;
+            }
+
             log!(
                 "Detected",
                 "change at {}, rebuilding",
@@ -94,7 +109,7 @@ fn build_watcher(
                     .trim_start_matches("\\\\?\\")
             );
 
-            if let Err(e) = crate::build::build(&manifest_path, &output, "development") {
+            if let Err(e) = ctx.build() {
                 error_handler(&e);
             } else {
                 let mut streams = streams.lock().unwrap();

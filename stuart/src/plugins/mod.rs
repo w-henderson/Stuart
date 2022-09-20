@@ -14,6 +14,7 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fs::create_dir_all;
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 
 /// Represents an external function that initializes a plugin.
 type PluginInitFn = unsafe extern "C" fn() -> *mut Plugin;
@@ -42,12 +43,16 @@ pub fn load(
     plugins: &Option<HashMap<String, String>>,
     root: &Path,
 ) -> Result<DynamicPluginManager, Box<dyn StuartError>> {
+    let plugins_start = Instant::now();
+
     let mut manager = DynamicPluginManager::new();
 
     if let Some(plugins) = plugins {
         for (name, src) in plugins {
             if let Ok(source) = PathBuf::try_from(src) {
                 if source.exists() && source.is_file() {
+                    log!("Loading", "plugin `{}`", name);
+
                     unsafe { manager.load(source)? };
 
                     continue;
@@ -107,6 +112,17 @@ pub fn load(
 
             Err(format!("invalid source for plugin `{}`", name))?;
         }
+    }
+
+    let plugins_duration = (plugins_start.elapsed().as_micros() / 100) as f64 / 10.0;
+
+    if !manager.plugins().is_empty() {
+        log!(
+            "Loaded",
+            "{} plugin(s) in {}ms\n",
+            manager.plugins().len(),
+            plugins_duration
+        );
     }
 
     Ok(manager)

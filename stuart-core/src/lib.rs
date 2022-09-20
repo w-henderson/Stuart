@@ -151,6 +151,7 @@ impl Stuart {
 
         self.base = Some(base);
         self.output = Some(self.build_node(self.input.as_ref().unwrap(), env)?);
+        self.input = None;
 
         Ok(())
     }

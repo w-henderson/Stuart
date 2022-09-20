@@ -14,6 +14,7 @@ mod plugins;
 mod scripts;
 mod serve;
 
+use crate::build::StuartContext;
 use crate::error::StuartError;
 use crate::logger::{LogLevel, Logger, Progress, LOGGER};
 
@@ -138,11 +139,15 @@ fn build(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
     let manifest_path: &str = args.value_of("manifest-path").unwrap();
     let output: &str = args.value_of("output").unwrap();
 
-    build::build(manifest_path, output, "production").map(|_| ())
+    let mut ctx = StuartContext::init(manifest_path, output, "production")?;
+
+    ctx.build().map(|_| ())
 }
 
 /// Runs the benchmark command with the given arguments.
 fn bench(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
+    let mut ctx = StuartContext::init("stuart.toml", "dist", "benchmark")?;
+
     let iters: usize = args
         .value_of("iterations")
         .unwrap()
@@ -153,7 +158,6 @@ fn bench(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
     let mut total_build = 0.0;
     let mut total_scripts = 0.0;
     let mut total_fs = 0.0;
-    let mut total_plugins = 0.0;
 
     LOGGER.get().unwrap().enabled.store(false, Ordering::SeqCst);
 
@@ -161,13 +165,12 @@ fn bench(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
     progress.print();
 
     for _ in 1..=iters {
-        let result = build::build("stuart.toml", "dist", "benchmark")?;
+        let result = ctx.build()?;
 
         total += result.total_duration;
         total_build += result.build_duration;
         total_scripts += result.scripts_duration;
         total_fs += result.fs_duration;
-        total_plugins += result.plugins_duration;
 
         progress.next();
     }
@@ -180,13 +183,11 @@ fn bench(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
     let avg_build = total_build / (iters as f64);
     let avg_scripts = total_scripts / (iters as f64);
     let avg_fs = total_fs / (iters as f64);
-    let avg_plugins = total_plugins / (iters as f64);
 
     log!("Total:", "{:.2}ms mean", avg);
     log!("Build:", "{:.2}ms mean", avg_build);
     log!("Scripts:", "{:.2}ms mean", avg_scripts);
     log!("Filesystem:", "{:.2}ms mean", avg_fs);
-    log!("Plugins:", "{:.2}ms mean", avg_plugins);
 
     Ok(())
 }
