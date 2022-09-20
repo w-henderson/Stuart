@@ -15,7 +15,7 @@ name = "stuart"
 path = "src/main.rs"
 
 [dependencies]
-stuart_core = { version = "^0.2.0", path = "../stuart-core" }
+stuart_core = { version = "^0.2.1", path = "../stuart-core" }
 
 clap = "^3.2"
 toml = "^0.5"
