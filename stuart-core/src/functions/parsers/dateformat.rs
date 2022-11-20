@@ -46,7 +46,7 @@ impl Function for DateFormatFunction {
 
     #[cfg(feature = "date")]
     fn execute(&self, scope: &mut Scope) -> Result<(), TracebackError<ProcessError>> {
-        use chrono::{Local, NaiveTime};
+        use chrono::{NaiveTime, Utc};
         use dateparser::parse_with;
 
         let self_token = scope.tokens.current().unwrap().clone();
@@ -64,7 +64,7 @@ impl Function for DateFormatFunction {
         })?;
 
         let date = std::panic::catch_unwind(|| {
-            parse_with(string, &Local, NaiveTime::from_hms(0, 0, 0))
+            parse_with(string, &Utc, NaiveTime::from_hms_opt(0, 0, 0).unwrap())
                 .ok()
                 .map(|d| d.format(&self.format).to_string())
                 .ok_or(ProcessError::InvalidDate)
