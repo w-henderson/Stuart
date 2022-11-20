@@ -47,7 +47,7 @@ pub fn parse_markdown(
             };
 
             if dashed_lines == 1 {
-                let mut parts = line.split(':');
+                let mut parts = line.splitn(2, ':');
                 let key = parts.next().ok_or_else(e)?.trim().to_string();
 
                 let value = parts
