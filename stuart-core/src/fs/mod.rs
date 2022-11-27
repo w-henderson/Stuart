@@ -231,7 +231,7 @@ impl Node {
                 None => ParsedContents::None,
             }
         } else {
-            ParsedContents::None
+            ParsedContents::Ignored
         };
 
         Ok(Node::File {
@@ -333,12 +333,21 @@ impl Node {
                     child.save_recur(&dir, config)?;
                 }
             }
-            Self::File { name, contents, .. } => {
+            Self::File {
+                name,
+                contents,
+                parsed_contents,
+                ..
+            } => {
                 if name != "root.html"
                     && name != "md.html"
                     && (config.save_data_files || !name.ends_with(".json"))
                 {
-                    if config.strip_extensions && name.ends_with(".html") && name != "index.html" {
+                    if config.strip_extensions
+                        && name.ends_with(".html")
+                        && name != "index.html"
+                        && !parsed_contents.is_ignored()
+                    {
                         let directory_name = name.strip_suffix(".html").unwrap().to_string();
                         let dir = path.join(directory_name);
 

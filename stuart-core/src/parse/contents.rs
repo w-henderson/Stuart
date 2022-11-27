@@ -20,8 +20,10 @@ pub enum ParsedContents {
     Json(Value),
     /// A file that was parsed by a plugin.
     Custom(Rc<Box<dyn NodeProcessor>>),
-    /// The file was not parsed.
+    /// The file was not parsed because no parser was available.
     None,
+    /// The file was not parsed because it was ignored.
+    Ignored,
 }
 
 impl ParsedContents {
@@ -41,11 +43,17 @@ impl ParsedContents {
         }
     }
 
+    /// Returns `true` if the contents were ignored.
+    pub fn is_ignored(&self) -> bool {
+        matches!(self, Self::Ignored)
+    }
+
     /// Converts the parsed contents to a JSON value, if applicable.
     pub fn to_json(&self) -> Option<Value> {
         match self {
             ParsedContents::Html(_) => None,
             ParsedContents::None => None,
+            ParsedContents::Ignored => None,
 
             ParsedContents::Markdown(md) => Some(json!({
                 "type": "markdown",
@@ -70,6 +78,7 @@ impl Debug for ParsedContents {
             Self::Json(arg0) => f.debug_tuple("Json").field(arg0).finish(),
             Self::Custom(_) => f.debug_tuple("Custom").finish(),
             Self::None => write!(f, "None"),
+            Self::Ignored => write!(f, "Ignored"),
         }
     }
 }
