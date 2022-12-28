@@ -9,8 +9,8 @@
   </p><br>
 
   <img src="https://img.shields.io/badge/language-rust-b07858?style=for-the-badge&logo=rust" style="margin-right:5px">
-  <img src="https://img.shields.io/github/workflow/status/w-henderson/Stuart/CLI?style=for-the-badge&label=cli" style="margin-right:5px">
-  <img src="https://img.shields.io/github/workflow/status/w-henderson/Stuart/Core?style=for-the-badge&label=core" style="margin-right:5px"><br>
+  <img src="https://img.shields.io/github/actions/workflow/status/w-henderson/Stuart/cli.yml?branch=master&style=for-the-badge&label=cli" style="margin-right:5px">
+  <img src="https://img.shields.io/github/actions/workflow/status/w-henderson/Stuart/core.yml?branch=master&style=for-the-badge&label=core" style="margin-right:5px"><br>
   <img src="https://img.shields.io/crates/v/stuart?label=stuart&style=for-the-badge" style="margin-right:5px">
   <img src="https://img.shields.io/crates/v/stuart_core?label=stuart-core&style=for-the-badge" style="margin-right:5px"><br><br>
 </div>
