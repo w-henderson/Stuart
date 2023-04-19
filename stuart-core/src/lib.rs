@@ -117,15 +117,11 @@ impl Stuart {
     }
 
     /// Attempts to build the project.
-    ///
-    /// If the input directory has not yet been loaded into memory, this will happen now.
     pub fn build(&mut self, stuart_env: String) -> Result<(), Error> {
-        if self.input.is_none() {
-            self.input = Some(match self.plugins {
-                Some(ref plugins) => Node::new_with_plugins(&self.dir, true, plugins.as_ref())?,
-                None => Node::new(&self.dir, true)?,
-            });
-        }
+        self.input = Some(match self.plugins {
+            Some(ref plugins) => Node::new_with_plugins(&self.dir, true, plugins.as_ref())?,
+            None => Node::new(&self.dir, true)?,
+        });
 
         let vars = {
             let mut env = std::env::vars().collect::<Vec<_>>();
@@ -151,7 +147,6 @@ impl Stuart {
 
         self.base = Some(base);
         self.output = Some(self.build_node(self.input.as_ref().unwrap(), env)?);
-        self.input = None;
 
         Ok(())
     }
