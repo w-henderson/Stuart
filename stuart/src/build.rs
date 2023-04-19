@@ -158,7 +158,7 @@ impl StuartContext {
             log!("Exporting", "metadata to `metadata.json`");
 
             let metadata_path = self.project_dir.join("metadata.json");
-            self.stuart.save_metadata(&metadata_path)?;
+            self.stuart.save_metadata(metadata_path)?;
         }
 
         let post_build_start = Instant::now();
