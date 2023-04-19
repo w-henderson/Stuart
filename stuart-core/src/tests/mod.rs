@@ -92,12 +92,10 @@ impl Testcase {
                 assert_eq!(
                     std::str::from_utf8(contents)
                         .unwrap()
-                        .replace('\n', "")
-                        .replace('\r', ""),
+                        .replace(['\n', '\r'], ""),
                     std::str::from_utf8(expected_contents)
                         .unwrap()
-                        .replace('\n', "")
-                        .replace('\r', "")
+                        .replace(['\n', '\r'], "")
                 );
             }
             _ => panic!("Not both files"),

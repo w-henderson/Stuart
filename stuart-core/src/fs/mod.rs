@@ -155,7 +155,7 @@ impl Node {
         plugins: Option<&dyn Manager>,
     ) -> Result<Self, Error> {
         let dir = dir.as_ref();
-        let content = read_dir(&dir)
+        let content = read_dir(dir)
             .map_err(|_| Error::Fs(FsError::NotFound(dir.to_string_lossy().to_string())))?;
 
         let children = content
@@ -186,7 +186,7 @@ impl Node {
     ) -> Result<Self, Error> {
         let file = file.as_ref();
         let name = file.file_name().unwrap().to_string_lossy().to_string();
-        let contents = read(&file).map_err(|_| Error::Fs(FsError::Read))?;
+        let contents = read(file).map_err(|_| Error::Fs(FsError::Read))?;
 
         let parsed_contents = if parse {
             let extension = file.extension().map(|e| e.to_string_lossy().to_string());
