@@ -7,7 +7,7 @@ use std::process::Command;
 /// Gets the user's name from Git.
 pub fn get_user_name() -> Option<String> {
     let output = Command::new("git")
-        .args(&["config", "--get", "user.name"])
+        .args(["config", "--get", "user.name"])
         .output()
         .ok()?;
 
@@ -21,7 +21,7 @@ pub fn get_user_name() -> Option<String> {
 /// Gets the user's email from Git.
 pub fn get_user_email() -> Option<String> {
     let output = Command::new("git")
-        .args(&["config", "--get", "user.email"])
+        .args(["config", "--get", "user.email"])
         .output()
         .ok()?;
 
@@ -46,7 +46,7 @@ pub fn init_repository(path: &str) -> bool {
 /// Checks whether a remote repository exists at the given URL.
 pub fn exists(url: &str) -> bool {
     Command::new("git")
-        .args(&["ls-remote", url])
+        .args(["ls-remote", url])
         .output()
         .map(|output| output.status.success())
         .unwrap_or(false)
@@ -57,7 +57,7 @@ pub fn exists(url: &str) -> bool {
 /// Returns `true` if the clone was successful, `false` otherwise.
 pub fn clone(url: &str, path: &str) -> bool {
     Command::new("git")
-        .args(&["clone", url, path, "--depth", "1"])
+        .args(["clone", url, path, "--depth", "1"])
         .output()
         .map(|output| output.status.success())
         .unwrap_or(false)
@@ -68,7 +68,7 @@ pub fn clone(url: &str, path: &str) -> bool {
 /// Returns `true` if the pull was successful, `false` otherwise.
 pub fn pull(path: &str) -> bool {
     Command::new("git")
-        .args(&["-C", path, "pull"])
+        .args(["-C", path, "pull"])
         .output()
         .map(|output| output.status.success())
         .unwrap_or(false)

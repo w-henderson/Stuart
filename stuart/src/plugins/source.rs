@@ -35,7 +35,7 @@ pub fn build_cargo_project(root: impl AsRef<Path>) -> Result<PathBuf, ScriptErro
     let manifest = root.as_ref().join("Cargo.toml");
 
     let output = Command::new("cargo")
-        .args(&["build", "--release", "--manifest-path"])
+        .args(["build", "--release", "--manifest-path"])
         .arg(&manifest)
         .output()
         .map_err(|_| ScriptError::CouldNotExecute("<build script>".to_string()))?;

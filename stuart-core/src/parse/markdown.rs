@@ -79,7 +79,7 @@ pub fn parse_markdown(
 
     let markdown = input
         .lines()
-        .skip(lines_to_skip as usize)
+        .skip(lines_to_skip)
         .collect::<Vec<_>>()
         .join("\n");
 
