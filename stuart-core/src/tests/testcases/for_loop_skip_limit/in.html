@@ -1,0 +1,7 @@
+{{ begin("main") }}
+<ul>
+{{ for($country, "data.json", skip=1, limit=1) }}
+<li>{{ $country.name }}</li>
+{{ end(for) }}
+</ul>
+{{ end("main") }}

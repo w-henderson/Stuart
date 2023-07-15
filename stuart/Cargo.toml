@@ -1,6 +1,6 @@
 [package]
 name = "stuart"
-version = "0.2.4"
+version = "0.2.5"
 edition = "2021"
 license = "MIT"
 homepage = "https://github.com/w-henderson/Stuart"
@@ -15,7 +15,7 @@ name = "stuart"
 path = "src/main.rs"
 
 [dependencies]
-stuart_core = { version = "^0.2.4", path = "../stuart-core" }
+stuart_core = { version = "^0.2.5", path = "../stuart-core" }
 
 clap = "^3.2"
 toml = "^0.5"

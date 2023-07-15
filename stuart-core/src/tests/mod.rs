@@ -11,6 +11,7 @@ define_testcases![
     for_loop_json_file,
     for_loop_json_object,
     for_loop_nested,
+    for_loop_skip_limit,
     dateformat,
     excerpt,
     ifdefined,

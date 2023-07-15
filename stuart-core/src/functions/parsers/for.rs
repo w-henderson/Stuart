@@ -17,7 +17,8 @@ pub struct ForFunction {
     variable_name: String,
     source: String,
     source_type: ForFunctionSourceType,
-    limit: Option<u16>,
+    skip: Option<usize>,
+    limit: Option<usize>,
     sort_variable: Option<String>,
     sort_order: SortOrder,
 }
@@ -65,12 +66,24 @@ impl FunctionParser for ForParser {
             ForFunctionSourceType::JSONObject
         };
 
+        let mut skip = None;
         let mut limit = None;
         let mut sort_variable = None;
         let mut sort_order = SortOrder::Asc;
 
         for (name, arg) in &raw.named_args {
             match name.as_str() {
+                "skip" => {
+                    quiet_assert!(arg.as_integer().is_some())?;
+                    quiet_assert!(skip.is_none())?;
+
+                    skip = Some(
+                        arg.as_integer()
+                            .unwrap()
+                            .try_into()
+                            .map_err(|_| ParseError::InvalidArgument)?,
+                    );
+                }
                 "limit" => {
                     quiet_assert!(arg.as_integer().is_some())?;
                     quiet_assert!(limit.is_none())?;
@@ -103,6 +116,7 @@ impl FunctionParser for ForParser {
             variable_name: variable_name.to_string(),
             source,
             source_type,
+            skip,
             limit,
             sort_variable,
             sort_order,
@@ -201,12 +215,18 @@ impl Function for ForFunction {
             });
         }
 
-        let variable_iter: Box<dyn Iterator<Item = Value>> = match (self.limit, self.sort_order) {
-            (None, SortOrder::Asc) => Box::new(variables.into_iter()),
-            (None, SortOrder::Desc) => Box::new(variables.into_iter().rev()),
-            (Some(l), SortOrder::Asc) => Box::new(variables.into_iter().take(l as usize)),
-            (Some(l), SortOrder::Desc) => Box::new(variables.into_iter().rev().take(l as usize)),
+        let mut variable_iter: Box<dyn Iterator<Item = Value>> = match self.sort_order {
+            SortOrder::Asc => Box::new(variables.into_iter()),
+            SortOrder::Desc => Box::new(variables.into_iter().rev()),
         };
+
+        if let Some(s) = self.skip {
+            variable_iter = Box::new(variable_iter.skip(s));
+        }
+
+        if let Some(l) = self.limit {
+            variable_iter = Box::new(variable_iter.take(l));
+        }
 
         for variable in variable_iter {
             scope.tokens.rewind_to(waypoint);
