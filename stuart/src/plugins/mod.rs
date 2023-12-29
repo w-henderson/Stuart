@@ -11,7 +11,6 @@ use stuart_core::plugins::{Manager, Plugin};
 use libloading::Library;
 
 use std::collections::HashMap;
-use std::convert::TryFrom;
 use std::fs::create_dir_all;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
@@ -32,12 +31,17 @@ pub struct DynamicPluginManager {
 ///
 /// This function will automatically detect the source kind and load it appropriately.
 ///
+/// Sources can be separated within the string with a semicolon (`;`), and will
+/// be tried in order until one succeeds or all fail.
+///
 /// Example configuration:
 /// ```toml
 /// [dependencies]
 /// plugin = "/path/to/plugin.so"
-/// another_plugin = "https://github.com/username/another_plugin.git"
-/// yet_another_plugin = "/path/to/cargo_project"
+/// git_plugin = "https://github.com/username/another_plugin.git"
+/// src_plugin = "/path/to/cargo_project"
+/// download_plugin = "https://example.com/plugin.so"
+/// os_independent_plugin = "/path/to/plugin.dll;/path/to/plugin.so"
 /// ```
 pub fn load(
     plugins: &Option<HashMap<String, String>>,
@@ -48,69 +52,41 @@ pub fn load(
     let mut manager = DynamicPluginManager::new();
 
     if let Some(plugins) = plugins {
-        for (name, src) in plugins {
-            if let Ok(source) = PathBuf::try_from(src) {
-                if source.exists() && source.is_file() {
-                    log!("Loading", "plugin `{}`", name);
+        'outer: for (name, src) in plugins {
+            let mut e: Option<Box<dyn StuartError>> = None;
 
-                    unsafe { manager.load(source)? };
-
-                    continue;
-                } else if source.join("Cargo.toml").exists() {
-                    log!("Compiling", "plugin `{}`", name);
-
-                    let path = source::build_cargo_project(&source)?;
-
-                    unsafe { manager.load(path)? };
-
+            for source in src.split(';') {
+                #[cfg(target_os = "windows")]
+                if source.ends_with(".so") {
+                    log!(
+                        "Skipping",
+                        "plugin file `{}` (not supported on Windows)",
+                        source
+                    );
                     continue;
                 }
-            }
 
-            if git::exists(src) {
-                let repo_dir = root.join(format!("_build/plugins/{}", name));
-                let repo_dir_string = repo_dir
-                    .to_string_lossy()
-                    .to_string()
-                    .trim_start_matches("\\\\?\\")
-                    .to_string();
+                #[cfg(not(target_os = "windows"))]
+                if source.ends_with(".dll") {
+                    log!(
+                        "Skipping",
+                        "plugin file `{}` (not supported on non-Windows platforms)",
+                        source
+                    );
+                    continue;
+                }
 
-                if !repo_dir.exists() {
-                    log!("Cloning", "plugin `{}` from `{}`", name, src);
-
-                    create_dir_all(root.join("_build/plugins"))
-                        .map_err(|_| Error::Fs(FsError::Write))?;
-
-                    if !git::clone(src, &repo_dir_string) {
-                        Err(format!(
-                            "failed to clone Git repository for plugin `{}`",
-                            name
-                        ))?;
+                if let Err(err) = load_from_source(&mut manager, name, source, root) {
+                    if e.is_none() {
+                        err.print();
+                        e = Some(err);
                     }
                 } else {
-                    log!("Pulling", "plugin `{}` from `{}`", name, src);
-
-                    if !git::pull(&repo_dir_string) {
-                        Err(format!(
-                            "failed to pull Git repository for plugin `{}`",
-                            name
-                        ))?;
-                    }
+                    continue 'outer;
                 }
-
-                let project = source::find_cargo_project(&repo_dir, name)
-                    .ok_or_else(|| format!("failed to find plugin `{}` in Git repository", name))?;
-
-                log!("Compiling", "plugin `{}`", name);
-
-                let path = source::build_cargo_project(&project)?;
-
-                unsafe { manager.load(path)? };
-
-                continue;
             }
 
-            Err(format!("invalid source for plugin `{}`", name))?;
+            return Err(Box::new("Plugins failed to load".to_string()));
         }
     }
 
@@ -126,6 +102,89 @@ pub fn load(
     }
 
     Ok(manager)
+}
+
+/// Attempts to load one specific plugin from the given source.
+fn load_from_source(
+    manager: &mut DynamicPluginManager,
+    name: &str,
+    src: &str,
+    root: &Path,
+) -> Result<(), Box<dyn StuartError>> {
+    let source = PathBuf::from(src);
+
+    if source.exists() && source.is_file() {
+        log!("Loading", "plugin `{}` from `{}`", name, src);
+
+        unsafe { manager.load(source)? };
+
+        Ok(())
+    } else if source.join("Cargo.toml").exists() {
+        log!("Compiling", "plugin `{}` from `{}`", name, src);
+
+        let path = source::build_cargo_project(&source)?;
+
+        unsafe { manager.load(path)? };
+
+        Ok(())
+    } else if git::exists(src) {
+        let repo_dir = root.join(format!("_build/plugins/{}", name));
+        let repo_dir_string = repo_dir
+            .to_string_lossy()
+            .to_string()
+            .trim_start_matches("\\\\?\\")
+            .to_string();
+
+        if !repo_dir.exists() {
+            log!("Cloning", "plugin `{}` from `{}`", name, src);
+
+            create_dir_all(root.join("_build/plugins")).map_err(|_| Error::Fs(FsError::Write))?;
+
+            if !git::clone(src, &repo_dir_string) {
+                Err(format!(
+                    "failed to clone Git repository for plugin `{}`",
+                    name
+                ))?;
+            }
+        } else {
+            log!("Pulling", "plugin `{}` from `{}`", name, src);
+
+            if !git::pull(&repo_dir_string) {
+                Err(format!(
+                    "failed to pull Git repository for plugin `{}`",
+                    name
+                ))?;
+            }
+        }
+
+        let project = source::find_cargo_project(&repo_dir, name)
+            .ok_or_else(|| format!("failed to find plugin `{}` in Git repository", name))?;
+
+        log!("Compiling", "plugin `{}`", name);
+
+        let path = source::build_cargo_project(project)?;
+
+        unsafe { manager.load(path)? };
+
+        Ok(())
+    } else if let Some(plugin) = source::download_plugin(src) {
+        log!("Downloading", "plugin `{}` from `{}`", name, src);
+
+        let plugin_dir = root.join(format!("_build/plugins/{}", name));
+        let plugin_path = plugin_dir.join(src.rsplit('/').next().unwrap());
+
+        if !plugin_dir.exists() {
+            create_dir_all(&plugin_dir).map_err(|_| Error::Fs(FsError::Write))?;
+        }
+
+        std::fs::write(&plugin_path, plugin).map_err(|_| Error::Fs(FsError::Write))?;
+
+        unsafe { manager.load(plugin_path)? };
+
+        Ok(())
+    } else {
+        Err(format!("invalid source for plugin `{}`", name))?
+    }
 }
 
 impl DynamicPluginManager {

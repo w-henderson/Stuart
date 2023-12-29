@@ -194,7 +194,7 @@ fn parse_function(
             .trim()
             .to_string();
 
-        if arg.contains('=') {
+        if arg.chars().next().map(|c| c != '"').unwrap_or(false) && arg.contains('=') {
             // Parse a named argument.
 
             // Extract the name and value.
@@ -256,7 +256,9 @@ fn parse_function(
     if let Some(plugins) = plugins {
         for plugin in plugins.plugins() {
             for function in &plugin.functions {
-                if function_name == format!("{}::{}", &plugin.name, function.name()) {
+                if function_name == function.name()
+                    || function_name == format!("{}::{}", &plugin.name, function.name())
+                {
                     return Ok(Token::Function(Rc::new(
                         function
                             .parse(raw_function)

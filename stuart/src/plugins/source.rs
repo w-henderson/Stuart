@@ -2,6 +2,8 @@
 
 use crate::scripts::ScriptError;
 
+use humphrey::Client;
+
 use std::fs::{read_dir, read_to_string};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -75,4 +77,12 @@ fn get_project_name(manifest: &Path) -> Option<String> {
         .get("name")?
         .as_str()
         .map(|s| s.to_string())
+}
+
+/// Attempt to download a plugin from the given URL.
+pub fn download_plugin(url: &str) -> Option<Vec<u8>> {
+    let mut client = Client::new();
+    let response = client.get(url).ok()?.with_redirects(true).send().ok()?;
+
+    Some(response.body)
 }
