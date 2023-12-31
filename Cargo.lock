@@ -697,7 +697,7 @@ checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
 
 [[package]]
 name = "stuart"
-version = "0.2.6"
+version = "0.2.7"
 dependencies = [
  "clap",
  "humphrey",
@@ -715,7 +715,7 @@ dependencies = [
 
 [[package]]
 name = "stuart_core"
-version = "0.2.6"
+version = "0.2.7"
 dependencies = [
  "chrono",
  "dateparser",
