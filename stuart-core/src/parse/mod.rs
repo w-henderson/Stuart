@@ -102,7 +102,7 @@ pub fn parse_html(
 
     let (mut line, mut column) = parser.location();
 
-    while let Some(raw) = parser.extract_until("{{") {
+    while let Some(raw) = parser.extract_until("{{", true) {
         if !raw.is_empty() {
             tokens.push(LocatableToken {
                 inner: Token::Raw(raw),
@@ -135,7 +135,7 @@ pub fn parse_html(
         (line, column) = parser.location();
     }
 
-    let remaining = parser.extract_remaining();
+    let remaining = parser.extract_remaining(true);
     if !remaining.is_empty() {
         tokens.push(LocatableToken {
             inner: Token::Raw(remaining),

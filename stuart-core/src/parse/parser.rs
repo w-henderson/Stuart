@@ -83,7 +83,7 @@ impl<'a> Parser<'a> {
     /// Extracts a string from the parser until the given string is found.
     ///
     /// The string is not included in the output.
-    pub fn extract_until(&mut self, s: &str) -> Option<String> {
+    pub fn extract_until(&mut self, s: &str, allow_escape: bool) -> Option<String> {
         let mut result = String::with_capacity(128);
         let old_chars = self.chars.clone();
 
@@ -92,6 +92,14 @@ impl<'a> Parser<'a> {
                 result.push(c);
 
                 if result.ends_with(s) {
+                    if allow_escape
+                        && result.len() > s.len()
+                        && result.as_bytes()[result.len() - s.len() - 1] == b'\\'
+                    {
+                        result.remove(result.len() - s.len() - 1);
+                        continue;
+                    }
+
                     result.truncate(result.len() - s.len());
 
                     return Some(result);
@@ -123,11 +131,15 @@ impl<'a> Parser<'a> {
     }
 
     /// Extracts all remaining characters in the parser.
-    pub fn extract_remaining(&mut self) -> String {
+    pub fn extract_remaining(&mut self, allow_escape: bool) -> String {
         let mut result = String::with_capacity(128);
 
         while let Ok(c) = self.next() {
             result.push(c);
+        }
+
+        if allow_escape {
+            result = result.replace("\\{{", "{{");
         }
 
         result

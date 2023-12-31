@@ -14,6 +14,7 @@ use crate::parse::{LocatableToken, ParsedMarkdown, Token};
 use crate::{Environment, Error, Stuart};
 
 use humphrey_json::Value;
+use pulldown_cmark::{html, Options, Parser};
 
 /// Represents the scope of a function execution.
 pub struct Scope<'a> {
@@ -210,6 +211,61 @@ impl Node {
         Ok(ProcessOutput {
             new_contents: Some(stack.pop().unwrap().output),
             new_name: Some(new_name),
+        })
+    }
+
+    /// Preprocess the markdown node, executing functions within the raw markdown and
+    /// converting it to HTML. The implementation of this is currently quite dodgy but
+    /// it works for the time being.
+    pub(crate) fn preprocess_markdown(
+        &mut self,
+        processor: &Stuart,
+    ) -> Result<(), TracebackError<ProcessError>> {
+        let source = self.source().to_path_buf();
+
+        let md = match self.parsed_contents_mut() {
+            ParsedContents::Markdown(md) => md,
+            _ => return Ok(()),
+        };
+
+        let mut token_iter = TokenIter::new(&md.markdown);
+        let mut stack: Vec<StackFrame> = vec![processor.base.as_ref().unwrap().clone()];
+        let mut sections: Vec<(String, Vec<u8>)> = Vec::new();
+        let mut scope = Scope {
+            tokens: &mut token_iter,
+            stack: &mut stack,
+            processor,
+            sections: &mut sections,
+        };
+
+        while let Some(token) = scope.tokens.next() {
+            token.process(&mut scope)?;
+        }
+
+        if let Some(frame) = scope.stack.pop() {
+            if frame.name == "base" {
+                let processed_markdown =
+                    String::from_utf8(frame.output).map_err(|_| TracebackError {
+                        path: source.clone(),
+                        line: 0,
+                        column: 0,
+                        kind: ProcessError::StackError,
+                    })?;
+
+                let parser = Parser::new_ext(&processed_markdown, Options::all());
+                let mut processed_html = String::new();
+                html::push_html(&mut processed_html, parser);
+
+                md.html = Some(processed_html);
+                return Ok(());
+            }
+        }
+
+        Err(TracebackError {
+            path: self.source().to_path_buf(),
+            line: 0,
+            column: 0,
+            kind: ProcessError::StackError,
         })
     }
 }

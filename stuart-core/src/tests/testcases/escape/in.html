@@ -1,0 +1,7 @@
+{{ begin("main") }}
+<ul>
+{{ for($post, "posts/", sortby=$post.title, order="asc") }}
+<li>{{ $post.content }} \{{ $self.author }} • \{{ dateformat($self.date, "%d %B %Y") }}</li>
+{{ end(for) }}
+</ul>
+{{ end("main") }}
