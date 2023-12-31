@@ -1,0 +1,9 @@
+<html>
+<body>
+<ul>
+<li><p>This is post 1</p> {{ $self.author }} • {{ dateformat($self.date, "%d %B %Y") }}</li>
+<li><p>This is post 2</p> {{ $self.author }} • {{ dateformat($self.date, "%d %B %Y") }}</li>
+<li><p>{{ hello }}</p> {{ $self.author }} • {{ dateformat($self.date, "%d %B %Y") }}</li>
+</ul>
+</body>
+</html>

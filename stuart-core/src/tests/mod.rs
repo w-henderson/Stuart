@@ -15,7 +15,9 @@ define_testcases![
     dateformat,
     excerpt,
     ifdefined,
-    conditionals
+    conditionals,
+    markdown_functions,
+    escape
 ];
 
 pub struct Testcase {
@@ -38,7 +40,7 @@ impl Testcase {
         context.merge(specific_context).unwrap();
 
         let input = Node::create_from_file(path.join("in.html"), true, None).unwrap();
-        let output = Node::create_from_file(path.join("out.html"), true, None).unwrap();
+        let output = Node::create_from_file(path.join("out"), false, None).unwrap();
 
         // Add the input to the base context.
         match context {

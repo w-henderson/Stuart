@@ -89,16 +89,22 @@ impl Stuart {
         }
     }
 
-    /// Creates a new builder from a virtual filesystem tree.
-    pub fn new_from_node(node: Node) -> Self {
-        Self {
+    /// Creates a new builder from a virtual filesystem tree. (for tests)
+    pub fn new_from_node(mut node: Node) -> Self {
+        let mut stuart = Self {
             dir: node.source().to_path_buf(),
-            input: Some(node),
+            input: Some(node.clone()),
             output: None,
             config: Config::default(),
-            base: None,
+            base: Some(StackFrame::new("base")),
             plugins: None,
-        }
+        };
+
+        stuart.preprocess_markdown_node(&mut node).unwrap();
+
+        stuart.input = Some(node);
+
+        stuart
     }
 
     /// Sets the configuration to use.
@@ -118,23 +124,22 @@ impl Stuart {
 
     /// Attempts to build the project.
     pub fn build(&mut self, stuart_env: String) -> Result<(), Error> {
-        self.input = Some(match self.plugins {
+        let mut input = match self.plugins {
             Some(ref plugins) => Node::new_with_plugins(&self.dir, true, plugins.as_ref())?,
             None => Node::new(&self.dir, true)?,
-        });
+        };
+
+        // This needs some explaining...
+        // We have to clone the input node here so that we can have an immutable copy in case
+        // something tries to change it during the markdown preprocessing stage.
+        // I hate this as much as you, TODO: come up with a better solution.
+        self.input = Some(input.clone());
 
         let vars = {
             let mut env = std::env::vars().collect::<Vec<_>>();
             env.push(("STUART_ENV".into(), stuart_env));
             env
         };
-
-        let env = Environment {
-            vars: &vars,
-            md: None,
-            root: None,
-        }
-        .update_from_children(self.input.as_ref().unwrap().children().unwrap());
 
         let base = StackFrame::new("base").with_variable(
             "env",
@@ -146,6 +151,17 @@ impl Stuart {
         );
 
         self.base = Some(base);
+
+        self.preprocess_markdown_node(&mut input)?;
+        self.input = Some(input);
+
+        let env = Environment {
+            vars: &vars,
+            md: None,
+            root: None,
+        }
+        .update_from_children(self.input.as_ref().unwrap().children().unwrap());
+
         self.output = Some(self.build_node(self.input.as_ref().unwrap(), env)?);
 
         Ok(())
@@ -209,6 +225,25 @@ impl Stuart {
                 })
             }
             Node::File { .. } => node.process(self, env),
+        }
+    }
+
+    /// Preprocess the given markdown node and its descendants, executing functions
+    /// and adding the result to the node's metadata in place.
+    fn preprocess_markdown_node(&mut self, node: &mut Node) -> Result<(), Error> {
+        match node {
+            Node::Directory { children, .. } => {
+                for child in children.iter_mut() {
+                    self.preprocess_markdown_node(child)?;
+                }
+
+                Ok(())
+            }
+            Node::File {
+                parsed_contents: ParsedContents::Markdown(_),
+                ..
+            } => node.preprocess_markdown(self).map_err(Error::Process),
+            _ => Ok(()),
         }
     }
 }

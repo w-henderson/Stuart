@@ -118,6 +118,19 @@ impl Node {
         }
     }
 
+    /// Returns the node's parsed contents mutably.
+    /// (This goes against everything Stuart is supposed to be but don't worry about it, it's for markdown preprocessing)
+    pub fn parsed_contents_mut(&mut self) -> &mut ParsedContents {
+        match self {
+            Node::File {
+                parsed_contents, ..
+            } => parsed_contents,
+            Node::Directory { .. } => {
+                panic!("`Node::parsed_contents_mut` should only be used on files")
+            }
+        }
+    }
+
     /// Returns the filesystem source of the node.
     pub fn source(&self) -> &Path {
         match self {
@@ -198,7 +211,8 @@ impl Node {
                     parse_html(contents_string?, file, plugins).map_err(Error::Parse)?,
                 ),
                 Some("md") => ParsedContents::Markdown(
-                    parse_markdown(contents_string?.to_string(), file).map_err(Error::Parse)?,
+                    parse_markdown(contents_string?.to_string(), file, plugins)
+                        .map_err(Error::Parse)?,
                 ),
                 Some("json") => ParsedContents::Json(
                     humphrey_json::from_str(contents_string?).map_err(|_| {

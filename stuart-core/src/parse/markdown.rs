@@ -1,9 +1,10 @@
 //! Provides functionality for parsing markdown files.
 
-use super::{ParseError, TracebackError};
+use crate::plugins::Manager;
+
+use super::{parse_html, LocatableToken, ParseError, TracebackError};
 
 use humphrey_json::Value;
-use pulldown_cmark::{html, Options, Parser};
 
 use std::path::Path;
 
@@ -11,15 +12,20 @@ use std::path::Path;
 #[derive(Clone, Debug)]
 pub struct ParsedMarkdown {
     /// The frontmatter of the file.
-    frontmatter: Vec<(String, String)>,
-    /// The body of the file, parsed into HTML.
-    body: String,
+    pub(crate) frontmatter: Vec<(String, String)>,
+    /// The raw markdown body of the file.
+    pub(crate) markdown: Vec<LocatableToken>,
+    /// The raw markdown body of the file as a string.
+    pub(crate) markdown_string: String,
+    /// The final processed HTML body of the file.
+    pub(crate) html: Option<String>,
 }
 
 /// Attempts to parse a markdown file into a [`ParsedMarkdown`] struct.
 pub fn parse_markdown(
     input: String,
     path: &Path,
+    plugins: Option<&dyn Manager>,
 ) -> Result<ParsedMarkdown, TracebackError<ParseError>> {
     let (lines_to_skip, frontmatter) = if input.starts_with("---\n") || input.starts_with("---\r\n")
     {
@@ -77,17 +83,20 @@ pub fn parse_markdown(
         (0, Vec::new())
     };
 
-    let markdown = input
+    let raw_markdown = input
         .lines()
         .skip(lines_to_skip)
         .collect::<Vec<_>>()
         .join("\n");
 
-    let parser = Parser::new_ext(&markdown, Options::all());
-    let mut body = String::new();
-    html::push_html(&mut body, parser);
+    let markdown = parse_html(&raw_markdown, path, plugins)?;
 
-    Ok(ParsedMarkdown { frontmatter, body })
+    Ok(ParsedMarkdown {
+        frontmatter,
+        markdown,
+        markdown_string: raw_markdown,
+        html: None,
+    })
 }
 
 impl ParsedMarkdown {
@@ -97,7 +106,8 @@ impl ParsedMarkdown {
     ///   is not required, consider using [`ParsedMarkdown::to_json`], which does the same thing without returning the contents.
     pub fn to_value(&self) -> Value {
         let mut v = self.frontmatter_to_value();
-        v["content"] = Value::String(self.body.clone());
+        v["content"] = Value::String(self.html.as_ref().unwrap().clone());
+        v["markdown"] = Value::String(self.markdown_string.clone());
         v
     }
 
