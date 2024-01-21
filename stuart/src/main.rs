@@ -14,6 +14,9 @@ mod plugins;
 mod scripts;
 mod serve;
 
+#[cfg(test)]
+mod test;
+
 use crate::build::StuartContext;
 use crate::error::StuartError;
 use crate::logger::{LogLevel, Logger, Progress, LOGGER};
@@ -24,8 +27,9 @@ use std::fs::{remove_dir_all, remove_file};
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 
-fn main() {
-    let matches = App::new("Stuart")
+/// Returns the CLI application.
+fn app() -> App<'static> {
+    App::new("Stuart")
         .version(env!("CARGO_PKG_VERSION"))
         .author("William Henderson <william-henderson@outlook.com>")
         .about("A Blazingly-Fast Static Site Generator")
@@ -102,7 +106,10 @@ fn main() {
             Command::new("clean").about("Removes the output directory and generated metadata"),
         )
         .subcommand_required(true)
-        .get_matches();
+}
+
+fn main() {
+    let matches = app().get_matches();
 
     let log_level = if matches.is_present("quiet") {
         LogLevel::Quiet
