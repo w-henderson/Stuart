@@ -10,13 +10,28 @@ macro_rules! test {
     ($name:ident, $manifest_path:expr, $post_build_checks:expr) => {
         #[test]
         fn $name() {
-            let mut result = full_build(concat!(
+            let result = full_build(concat!(
                 env!("CARGO_MANIFEST_DIR"),
                 $manifest_path,
                 "/stuart.toml"
             ));
 
-            result &= ($post_build_checks)(concat!(env!("CARGO_MANIFEST_DIR"), $manifest_path));
+            if !result {
+                cleanup(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    $manifest_path,
+                    "/stuart.toml"
+                ));
+
+                exit(1);
+            }
+
+            let index = std::fs::read_to_string(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                $manifest_path,
+                "/dist/index.html"
+            ))
+            .unwrap();
 
             cleanup(concat!(
                 env!("CARGO_MANIFEST_DIR"),
@@ -24,18 +39,20 @@ macro_rules! test {
                 "/stuart.toml"
             ));
 
-            if !result {
-                exit(1);
-            }
+            $post_build_checks(index.trim());
         }
     };
 }
 
-test!(basic, "/tests/basic", |_| true);
+test!(basic, "/tests/basic", |_| ());
 
 #[cfg(feature = "js")]
-test!(js, "/tests/js", |path| {
-    return contents(path, "index.html").trim() == "5";
+test!(js, "/tests/js", |index: &str| {
+    let mut lines = index.lines().map(|s| s.trim());
+    assert_eq!(lines.next().unwrap(), "5"); // add(2, 3)
+    assert_eq!(lines.next().unwrap(), "1,3,4,5,6,8"); // sort(1, 5, 3, 6, 8, 4)
+    assert_eq!(lines.next().unwrap(), "0 1 2"); // inc() inc() inc()
+    assert_eq!(lines.next().unwrap(), "5"); // magnitude({ x: 3, y: 4 })
 });
 
 fn full_build(manifest_path: &str) -> bool {
@@ -58,8 +75,4 @@ fn cleanup(manifest_path: &str) {
     let dist = path.parent().unwrap().join("dist");
     let _ = remove_dir_all(dist);
     let _ = remove_file(path.parent().unwrap().join("metadata.json"));
-}
-
-fn contents(path: &str, dist_path: &str) -> String {
-    std::fs::read_to_string(Path::new(path).join("dist").join(dist_path)).unwrap()
 }

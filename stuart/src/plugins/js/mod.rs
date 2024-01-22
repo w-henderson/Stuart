@@ -112,7 +112,6 @@ pub fn load_js_plugin(path: impl AsRef<Path>) -> Result<Plugin, String> {
             let key = v8::String::new(scope, "fn").unwrap();
             let function_fn = function_object.get(scope, key.into()).unwrap();
 
-            println!("{}", function_name);
             let key = v8::String::new(scope, &format!("_stuart_{}", function_name)).unwrap();
             context.global(scope).set(scope, key.into(), function_fn);
 
@@ -185,7 +184,6 @@ impl Function for JSFunction {
             .collect::<Result<Vec<_>, _>>()?;
 
         let key = v8::String::new(scope, &format!("_stuart_{}", self.name)).unwrap();
-        println!("{}", self.name);
         let function_obj = context.global(scope).get(scope, key.into()).unwrap();
         let function = v8::Local::<v8::Function>::try_from(function_obj).unwrap();
 

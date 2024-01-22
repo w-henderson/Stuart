@@ -1,3 +1,6 @@
 {{ begin("body") }}
-{{ my_js_plugin::add(2, 3) }}
+  {{ my_js_plugin::add(2, 3) }}
+  {{ my_js_plugin::sort(1, 5, 3, 6, 8, 4) }}
+  {{ my_js_plugin::inc() }} {{ my_js_plugin::inc() }} {{ my_js_plugin::inc() }}
+  {{ import($data, "./data.json") }} {{ my_js_plugin::magnitude($data) }}
 {{ end("body") }}
