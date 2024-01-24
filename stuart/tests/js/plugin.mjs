@@ -30,6 +30,16 @@ function magnitude(v) {
   return Math.sqrt(v.x * v.x + v.y * v.y);
 }
 
+/* Test function which sets a variable in Rust */
+function setVariable() {
+  STUART.set("my_var", "set by JavaScript!");
+}
+
+/* Test function which gets a variable from Rust */
+function getVariable() {
+  return STUART.get("my_var");
+}
+
 export default {
   name: "my_js_plugin",
   version: "0.0.1",
@@ -49,6 +59,14 @@ export default {
     {
       name: "magnitude",
       fn: magnitude
+    },
+    {
+      name: "set",
+      fn: setVariable
+    },
+    {
+      name: "get",
+      fn: getVariable
     }
   ]
 }

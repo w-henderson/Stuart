@@ -53,6 +53,8 @@ test!(js, "/tests/js", |index: &str| {
     assert_eq!(lines.next().unwrap(), "1,3,4,5,6,8"); // sort(1, 5, 3, 6, 8, 4)
     assert_eq!(lines.next().unwrap(), "0 1 2"); // inc() inc() inc()
     assert_eq!(lines.next().unwrap(), "5"); // magnitude({ x: 3, y: 4 })
+    assert_eq!(lines.next().unwrap(), "set by JavaScript!"); // set()
+    assert_eq!(lines.next().unwrap(), "set by JavaScript!"); // get()
 });
 
 fn full_build(manifest_path: &str) -> bool {

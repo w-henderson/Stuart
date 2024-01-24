@@ -1,3 +1,4 @@
+mod context;
 mod json;
 
 use stuart_core::functions::{Function, FunctionParser};
@@ -172,7 +173,7 @@ impl Function for JSFunction {
             .iter()
             .map(|a| match a {
                 RawArgument::Variable(name) => match stuart_scope.get_variable(name) {
-                    Some(v) => Ok(json::json_to_js(v, scope)),
+                    Some(v) => Ok(json::json_to_js(Some(v), scope)),
                     None => {
                         Err(self_token.traceback(ProcessError::UndefinedVariable(name.to_string())))
                     }
@@ -187,11 +188,17 @@ impl Function for JSFunction {
         let function_obj = context.global(scope).get(scope, key.into()).unwrap();
         let function = v8::Local::<v8::Function>::try_from(function_obj).unwrap();
 
-        let result = function.call(scope, function_obj, &evaluated_args).unwrap();
+        // Make the `stuart_scope`` variable accessible from JavaScript calls back into Rust.
+        // If I've done this right (which is a big if), this should be safe because the V8 scope is dropped/GC'd as soon as `execute` returns.
+        context::set_stuart_context(scope, stuart_scope);
 
-        stuart_scope
-            .output(result.to_rust_string_lossy(scope))
-            .unwrap();
+        if let Some(result) = function.call(scope, function_obj, &evaluated_args) {
+            if !result.is_undefined() {
+                stuart_scope
+                    .output(result.to_rust_string_lossy(scope))
+                    .unwrap();
+            }
+        }
 
         Ok(())
     }
