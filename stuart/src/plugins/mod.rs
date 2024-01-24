@@ -213,7 +213,8 @@ impl DynamicPluginManager {
 
         if ext == "js" || ext == "mjs" {
             #[cfg(feature = "js")]
-            self.load_js(path)
+            self.load_js(path)?;
+            Ok(())
         } else {
             unsafe { self.load_binary(path) }
         }
