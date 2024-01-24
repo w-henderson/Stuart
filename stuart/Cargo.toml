@@ -1,6 +1,6 @@
 [package]
 name = "stuart"
-version = "0.2.7"
+version = "0.3.0"
 edition = "2021"
 license = "MIT"
 homepage = "https://github.com/w-henderson/Stuart"
@@ -15,7 +15,7 @@ name = "stuart"
 path = "src/main.rs"
 
 [dependencies]
-stuart_core = { version = "^0.2.6", path = "../stuart-core" }
+stuart_core = { version = "^0.3.0", path = "../stuart-core" }
 
 clap = "^3.2"
 toml = "^0.5"
@@ -32,5 +32,4 @@ libloading = "^0.7.3"
 v8 = { version = "^0.82.0", optional = true }
 
 [features]
-default = ["js"]
 js = ["v8"]
