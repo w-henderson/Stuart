@@ -257,7 +257,7 @@ fn parse_function(
         for plugin in plugins.plugins() {
             for function in &plugin.functions {
                 if function_name == function.name()
-                    || function_name == format!("{}::{}", &plugin.name, function.name())
+                    || function_name == format!("{}::{}", plugin.name, function.name())
                 {
                     return Ok(Token::Function(Rc::new(
                         function

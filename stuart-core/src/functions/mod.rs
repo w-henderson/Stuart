@@ -53,16 +53,18 @@ use std::fmt::Debug;
 ///   the inner workings of which are hidden from Stuart through the [`Function`] trait. The parser should also
 ///   define a name, which is used to identify the function when parsing a file. The name of the function parser
 ///   **must** be the same as that of the returned function.
-pub trait FunctionParser: Send + Sync {
+pub trait FunctionParser {
     /// Returns the name of the function which the parser can parse.
     ///
     /// This **must** return the same value as the `name` method of the returned function.
-    fn name(&self) -> &'static str;
+    fn name(&self) -> &str;
 
     /// Attempts to parse the raw function into an executable function object.
     fn parse(&self, raw: RawFunction) -> Result<Box<dyn Function>, ParseError>;
 
     /// Returns `true` if the raw function can be parsed by this function parser.
+    ///
+    /// Not used for plugin functions!
     fn can_parse(&self, raw: &RawFunction) -> bool {
         raw.name == self.name()
     }
@@ -72,9 +74,9 @@ pub trait FunctionParser: Send + Sync {
 ///
 /// When the function is executed, it is given a [`Scope`] object, which contains information about the current state
 ///   of the program, including variables, stack frames and more.
-pub trait Function: Debug + Send + Sync {
+pub trait Function: Debug {
     /// Returns the name of the function.
-    fn name(&self) -> &'static str;
+    fn name(&self) -> &str;
 
     /// Executes the function in the given scope.
     fn execute(&self, scope: &mut Scope) -> Result<(), TracebackError<ProcessError>>;
@@ -151,7 +153,7 @@ macro_rules! define_functions {
         const FUNCTION_COUNT: usize = count!($($name)*);
 
         ::lazy_static::lazy_static! {
-            static ref FUNCTION_PARSERS: [Box<dyn $crate::functions::FunctionParser>; FUNCTION_COUNT] = [
+            static ref FUNCTION_PARSERS: [Box<dyn $crate::functions::FunctionParser + Sync>; FUNCTION_COUNT] = [
                 $(Box::new($name)),*
             ];
         }

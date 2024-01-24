@@ -13,12 +13,12 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 /// The directory containing the default site template, built into the binary when compiled.
-static DEFAULT_PROJECT: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/example");
+static DEFAULT_PROJECT: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/tests/basic");
 
 /// Creates a new site with the given arguments.
 pub fn new(args: &ArgMatches) -> Result<(), Box<dyn StuartError>> {
     let name = args.value_of("name").unwrap();
-    let path = PathBuf::try_from(name).map_err(|_| FsError::Write)?;
+    let path = PathBuf::from(name);
     let no_git = args.is_present("no-git");
 
     let mut manifest: Vec<u8> = format!("[site]\nname = \"{}\"", name).as_bytes().to_vec();

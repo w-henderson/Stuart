@@ -2,6 +2,9 @@
 
 mod source;
 
+#[cfg(feature = "js")]
+mod js;
+
 use crate::config::git;
 use crate::error::StuartError;
 
@@ -12,7 +15,7 @@ use libloading::Library;
 
 use std::collections::HashMap;
 use std::fs::create_dir_all;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::time::Instant;
 
 /// Represents an external function that initializes a plugin.
@@ -76,6 +79,16 @@ pub fn load(
                     continue;
                 }
 
+                #[cfg(not(feature = "js"))]
+                if source.ends_with(".js") || source.ends_with(".mjs") {
+                    log!(
+                        "Skipping",
+                        "plugin file `{}` (JavaScript support is not enabled)",
+                        source
+                    );
+                    continue;
+                }
+
                 if let Err(err) = load_from_source(&mut manager, name, source, root) {
                     if e.is_none() {
                         err.print();
@@ -111,12 +124,12 @@ fn load_from_source(
     src: &str,
     root: &Path,
 ) -> Result<(), Box<dyn StuartError>> {
-    let source = PathBuf::from(src);
+    let source = root.join(src);
 
     if source.exists() && source.is_file() {
         log!("Loading", "plugin `{}` from `{}`", name, src);
 
-        unsafe { manager.load(source)? };
+        manager.load(source)?;
 
         Ok(())
     } else if source.join("Cargo.toml").exists() {
@@ -124,7 +137,7 @@ fn load_from_source(
 
         let path = source::build_cargo_project(&source)?;
 
-        unsafe { manager.load(path)? };
+        unsafe { manager.load_binary(path)? };
 
         Ok(())
     } else if git::exists(src) {
@@ -164,7 +177,7 @@ fn load_from_source(
 
         let path = source::build_cargo_project(project)?;
 
-        unsafe { manager.load(path)? };
+        unsafe { manager.load_binary(path)? };
 
         Ok(())
     } else if let Some(plugin) = source::download_plugin(src) {
@@ -179,7 +192,7 @@ fn load_from_source(
 
         std::fs::write(&plugin_path, plugin).map_err(|_| Error::Fs(FsError::Write))?;
 
-        unsafe { manager.load(plugin_path)? };
+        manager.load(plugin_path)?;
 
         Ok(())
     } else {
@@ -194,11 +207,25 @@ impl DynamicPluginManager {
     }
 
     /// Attempts to load a plugin from the given path.
+    pub fn load(&mut self, path: impl AsRef<Path>) -> Result<(), String> {
+        let path = path.as_ref();
+        let ext = path.extension().unwrap_or_default().to_string_lossy();
+
+        if ext == "js" || ext == "mjs" {
+            #[cfg(feature = "js")]
+            self.load_js(path)?;
+            Ok(())
+        } else {
+            unsafe { self.load_binary(path) }
+        }
+    }
+
+    /// Attempts to load a binary plugin from the given path.
     ///
     /// # Safety
     ///
     /// Calls foreign code. The safety of this function is dependent on the safety of the foreign code.
-    pub unsafe fn load(&mut self, path: impl AsRef<Path>) -> Result<(), String> {
+    pub unsafe fn load_binary(&mut self, path: impl AsRef<Path>) -> Result<(), String> {
         let library = Library::new(path.as_ref()).map_err(|e| e.to_string())?;
         self.libraries.push(library);
 
@@ -210,6 +237,15 @@ impl DynamicPluginManager {
         let raw_plugin = init_fn();
         let plugin = Box::from_raw(raw_plugin);
         self.plugins.push(*plugin);
+
+        Ok(())
+    }
+
+    /// Attempts to load a JavaScript plugin from the given path.
+    #[cfg(feature = "js")]
+    pub fn load_js(&mut self, path: impl AsRef<Path>) -> Result<(), String> {
+        let plugin = js::load_js_plugin(path)?;
+        self.plugins.push(plugin);
 
         Ok(())
     }

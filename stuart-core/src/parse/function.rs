@@ -18,6 +18,7 @@ pub struct RawFunction {
 }
 
 /// Represents a raw argument.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RawArgument {
     /// A variable name.
     Variable(String),

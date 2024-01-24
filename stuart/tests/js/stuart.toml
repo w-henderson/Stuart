@@ -1,0 +1,6 @@
+[site]
+name = "example"
+author = "William Henderson <william-henderson@outlook.com>"
+
+[dependencies]
+my_js_plugin = "./plugin.mjs"

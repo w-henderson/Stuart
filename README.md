@@ -17,7 +17,7 @@
 
 <hr><br>
 
-Stuart is a very fast and flexible static site generator, with build times as low as 0.1ms per page. It is written in Rust, and is designed be easier to use than other SSGs, while still beating them in the benchmarks. Stuart's simple yet powerful templating system allows you to define complex logic for your site, sourcing data from Markdown and JSON files as well as the template files, before rendering it all to static HTML. For even more complex projects, you can augment Stuart with custom build scripts in any language that integrate with the core build system, as well as custom plugins.
+Stuart is a very fast and flexible static site generator, with build times as low as 0.1ms per page. It is written in Rust, and is designed be easier to use than other SSGs, while still beating them in the benchmarks. Stuart's simple yet powerful templating system allows you to define complex logic for your site, sourcing data from Markdown and JSON files as well as the template files, before rendering it all to static HTML. For even more complex projects, you can augment Stuart with custom build scripts in any language that integrate with the core build system, as well as custom plugins in Rust or JavaScript.
 
 **Note:** Stuart is an extremely new project, so functionality and documentation are still being added. For the time being, documentation is limited to this README.
 
@@ -44,7 +44,7 @@ Stuart is a very fast and flexible static site generator, with build times as lo
 
 ### Installation
 
-Stuart is available as a pre-built binary for Windows and Linux. You can download the latest release from the [releases page](https://github.com/w-henderson/Stuart/releases). Alternatively, you can build the code from scratch using Rust's package manager, Cargo. To do this, clone the repository and run `cargo build --release`.
+Stuart is available as a pre-built binary for Windows and Linux. You can download the latest release from the [releases page](https://github.com/w-henderson/Stuart/releases). Alternatively, you can build the code from scratch using Rust's package manager, Cargo. To do this, clone the repository and run `cargo build --release`. Support for JavaScript plugins is disabled by default, so to enable it, enable the `js` feature.
 
 Stuart requires Git to be installed for many of its features to work.
 
@@ -74,10 +74,16 @@ You can declare plugin dependencies in the `[dependencies]` section using a simi
 [dependencies]
 my_plugin = "/path/to/plugin.so"
 my_other_plugin = "/path/to/cargo/project/"
-my_remote_plugin = "https://github.com/username/plugin"
+my_git_plugin = "https://github.com/username/plugin"
+my_remote_plugin = "https://example.com/plugin.so"
 ```
 
 Stuart will automatically detect whether the plugin needs to be cloned from a Git repository and whether it needs to be compiled. If the plugin does require compilation, Stuart requires the Rust toolchain to be installed.
+
+You can separate plugin sources with a semicolon to specify fallbacks, for example:
+```toml
+my_plugin = "/lib/plugin.so;https://example.com/plugin.so"
+```
 
 ## Project Structure
 
@@ -237,9 +243,11 @@ Stuart supports dynamically-loaded plugins, which are Rust libraries that provid
 {{ my_plugin::my_function() }}
 ```
 
-### Plugin API
+If the function name doesn't clash with another function, the plugin name can be omitted. If it does, built-in functions take priority over plugin functions, but the order of plugin functions is undefined. So don't do that.
 
-Plugins are defined using the `define_plugin!` macro in the core crate. They can add functions to Stuart, which are implemented in exactly the same way as the built-in functions, and can also add parsers for new file types. Please refer to the [built-in functions](https://github.com/w-henderson/Stuart/tree/master/stuart-core/src/functions/parsers) for function implementation examples, and to the [image optimization plugin source code](https://github.com/w-henderson/Stuart/tree/master/plugins/imgopt) to see how parsers for new file types can be used. An example of calling the macro is as follows:
+### Native Plugin API
+
+Native plugins are defined using the `define_plugin!` macro in the core crate. They can add functions to Stuart, which are implemented in exactly the same way as the built-in functions, and can also add parsers for new file types. Please refer to the [built-in functions](https://github.com/w-henderson/Stuart/tree/master/stuart-core/src/functions/parsers) for function implementation examples, and to the [image optimization plugin source code](https://github.com/w-henderson/Stuart/tree/master/plugins/imgopt) to see how parsers for new file types can be used. An example of calling the macro is as follows:
 
 ```rs
 declare_plugin! {
@@ -268,3 +276,29 @@ The project must also have `stuart_core` as a dependency in order to use the `de
 [dependencies]
 stuart_core = { version = "*", default-features = false }
 ```
+
+### JavaScript Plugin API
+
+When compiled with the `js` feature, Stuart can also load plugins written in JavaScript using V8. These can only add functions to Stuart. A plugin is simply a JavaScript module which exports a default object containing the plugin metadata, analogous to the `declare_plugin!` macro in Rust:
+
+```js
+export default {
+  name: "my_plugin",
+  version: "1.0.0",
+  functions: [
+    {
+      name: "add",
+      fn: (a, b) => a + b
+    }
+  ]
+}
+```
+
+Stuart variables will automatically be converted to JavaScript objects when passed as arguments, but changes to them will not propagate back to the Rust end automatically. For that, you can use the `STUART` global object to access the plugin API.
+
+```js
+const self = STUART.get("self");
+STUART.set("my_var", `Title: ${self.title}`);
+```
+
+For an example of a more complex JavaScript plugin, see [stuart-math](https://github.com/w-henderson/stuart-math), which uses MathJax to render LaTeX.
