@@ -1,3 +1,5 @@
+//! Implements V8-based JavaScript plugins.
+
 mod context;
 mod json;
 
@@ -11,19 +13,34 @@ use std::path::Path;
 use std::rc::Rc;
 use std::sync::{Mutex, Once};
 
+/// Ensures that V8 is initialised exactly once.
 static INITIALISED: Once = Once::new();
 
+/// A parser for JavaScript functions.
+///
+/// Since JavaScript functions can take a variable number of arguments of different types, this function
+/// just passes the function's arguments to `JSFunction` as-is.
 pub struct JSFunctionParser {
+    /// The name of the function.
     name: String,
+    /// A reference to the V8 isolate. This is within a `Mutex` to enable shared ownership, despite the fact that
+    /// V8 isolates are not `Send` or `Sync`, so we can't share it between threads.
     isolate: Rc<Mutex<v8::OwnedIsolate>>,
+    /// The V8 context for this plugin.
     context: v8::Global<v8::Context>,
 }
 
+/// A Stuart function that executes JavaScript code.
 #[derive(Debug)]
 pub struct JSFunction {
+    /// The name of the function.
     name: String,
+    /// A reference to the V8 isolate. This is within a `Mutex` to enable shared ownership, despite the fact that
+    /// V8 isolates are not `Send` or `Sync`, so we can't share it between threads.
     isolate: Rc<Mutex<v8::OwnedIsolate>>,
+    /// The V8 context for this plugin.
     context: v8::Global<v8::Context>,
+    /// The function's arguments.
     args: Vec<RawArgument>,
 }
 
@@ -51,12 +68,13 @@ pub fn load_js_plugin(path: impl AsRef<Path>) -> Result<Plugin, String> {
         let source_string = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
         let source = v8::String::new(scope, &source_string).unwrap();
         let compile_source = v8::script_compiler::Source::new(source, Some(&origin));
-        let module = v8::script_compiler::compile_module(scope, compile_source).unwrap();
+        let module = v8::script_compiler::compile_module(scope, compile_source)
+            .ok_or("failed to compile module")?;
 
         module
             .instantiate_module(scope, |_, _, _, m| Some(m))
-            .unwrap();
-        module.evaluate(scope).unwrap();
+            .ok_or("failed to instantiate module")?;
+        module.evaluate(scope).ok_or("failed to evaluate module")?;
 
         let key = v8::String::new(scope, "default").unwrap();
         let default = module
@@ -64,34 +82,32 @@ pub fn load_js_plugin(path: impl AsRef<Path>) -> Result<Plugin, String> {
             .to_object(scope)
             .unwrap()
             .get(scope, key.into())
-            .unwrap()
+            .ok_or("failed to get default export")?
             .to_object(scope)
-            .unwrap();
-
-        // context.global(scope).set(scope, key.into(), default.into());
+            .ok_or("failed to get default export")?;
 
         let key = v8::String::new(scope, "name").unwrap();
         let plugin_name = default
             .get(scope, key.into())
-            .unwrap()
+            .ok_or("missing plugin name")?
             .to_rust_string_lossy(scope);
 
         let key = v8::String::new(scope, "version").unwrap();
         let plugin_version = default
             .get(scope, key.into())
-            .unwrap()
+            .ok_or("missing plugin version")?
             .to_rust_string_lossy(scope);
 
         let key = v8::String::new(scope, "functions").unwrap();
         let functions = default
             .get(scope, key.into())
-            .unwrap()
+            .ok_or("missing plugin functions")?
             .to_object(scope)
-            .unwrap();
+            .ok_or("missing plugin functions")?;
         let key = v8::String::new(scope, "length").unwrap();
         let length = functions
             .get(scope, key.into())
-            .unwrap()
+            .ok_or("missing plugin functions")?
             .uint32_value(scope)
             .unwrap();
 
@@ -100,18 +116,20 @@ pub fn load_js_plugin(path: impl AsRef<Path>) -> Result<Plugin, String> {
         for i in 0..length {
             let function_object = functions
                 .get_index(scope, i)
-                .unwrap()
+                .ok_or_else(|| format!("missing function at index {}", i))?
                 .to_object(scope)
-                .unwrap();
+                .ok_or_else(|| format!("missing function at index {}", i))?;
 
             let key = v8::String::new(scope, "name").unwrap();
             let function_name = function_object
                 .get(scope, key.into())
-                .unwrap()
+                .ok_or_else(|| format!("invalid function at index {}", i))?
                 .to_rust_string_lossy(scope);
 
             let key = v8::String::new(scope, "fn").unwrap();
-            let function_fn = function_object.get(scope, key.into()).unwrap();
+            let function_fn = function_object
+                .get(scope, key.into())
+                .ok_or_else(|| format!("invalid function at index {}", i))?;
 
             let key = v8::String::new(scope, &format!("_stuart_{}", function_name)).unwrap();
             context.global(scope).set(scope, key.into(), function_fn);

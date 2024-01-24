@@ -15,7 +15,7 @@ use libloading::Library;
 
 use std::collections::HashMap;
 use std::fs::create_dir_all;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::time::Instant;
 
 /// Represents an external function that initializes a plugin.

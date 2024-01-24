@@ -1,3 +1,5 @@
+//! Enables access to Stuart's execution context from JavaScript running within V8.
+
 use stuart_core::process::Scope;
 
 /// Makes the Stuart scope accessible to `set_variable` and `get_variable` when they're called from JavaScript code.
@@ -27,6 +29,10 @@ pub fn set_stuart_context(scope: &mut v8::HandleScope, context: &mut Scope) {
         .set(scope, k_context.into(), stuart_context.into());
 }
 
+/// Gets the Stuart context from V8.
+///
+/// # Safety
+/// This function is only safe if `set_stuart_context` has previously been called with the same `scope`.
 unsafe fn get_stuart_context<'s>(
     scope: &mut v8::HandleScope,
     obj: v8::Local<'_, v8::Object>,
@@ -40,15 +46,24 @@ unsafe fn get_stuart_context<'s>(
         .unwrap()
 }
 
+/// Sets a variable in the current Stuart scope.
 pub fn set_variable<'s>(
     scope: &mut v8::HandleScope<'s>,
     args: v8::FunctionCallbackArguments<'s>,
-    mut ret: v8::ReturnValue,
+    _ret: v8::ReturnValue,
 ) {
     let stuart_scope = unsafe { get_stuart_context(scope, args.this()) };
     let key = args.get(0).to_rust_string_lossy(scope);
     let value = args.get(1);
     let json_value = super::json::js_to_json(value, scope);
+
+    if json_value.is_none() {
+        println!(
+            "warning(js): attempted to set variable `{}` to `undefined`",
+            key
+        );
+        return;
+    }
 
     stuart_scope
         .stack
@@ -57,7 +72,7 @@ pub fn set_variable<'s>(
         .add_variable(key, json_value.unwrap());
 }
 
-// TODO: test
+/// Gets a variable from the current Stuart scope.
 pub fn get_variable<'s>(
     scope: &mut v8::HandleScope<'s>,
     args: v8::FunctionCallbackArguments<'s>,

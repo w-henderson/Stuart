@@ -1,5 +1,10 @@
+//! Provides functionality for converting between JSON and JavaScript objects within V8.
+
 use humphrey_json::Value;
 
+/// Converts a JSON value to a JavaScript object.
+///
+/// Returns `undefined` if `value` is `None`.
 pub fn json_to_js<'a>(
     value: Option<Value>,
     scope: &mut v8::HandleScope<'a>,
@@ -32,6 +37,9 @@ pub fn json_to_js<'a>(
     }
 }
 
+/// Converts a JavaScript object to a JSON value.
+///
+/// Returns `None` if `value` is `undefined`.
 pub fn js_to_json<'a>(
     value: v8::Local<'a, v8::Value>,
     scope: &mut v8::HandleScope<'a>,
@@ -84,7 +92,7 @@ pub fn js_to_json<'a>(
         for i in 0..length {
             let v8_key = keys.get_index(scope, i).unwrap();
             let key = v8_key.to_rust_string_lossy(scope).to_string();
-            let v8_value = v8_object.get(scope, v8_key.into()).unwrap();
+            let v8_value = v8_object.get(scope, v8_key).unwrap();
             let value = js_to_json(v8_value, scope);
             object.push((key, value.unwrap()));
         }
