@@ -57,6 +57,11 @@ test!(js, "/tests/js", |index: &str| {
     assert_eq!(lines.next().unwrap(), "set by JavaScript!"); // get()
 });
 
+#[cfg(feature = "js")]
+test!(js_isolation, "/tests/js-isolation", |index: &str| {
+    assert_eq!(index.trim(), "0 1 2 0 1 3"); // A::inc() A::inc() A::inc() B::inc() B::inc() A::inc()
+});
+
 fn full_build(manifest_path: &str) -> bool {
     let args = app().get_matches_from(vec!["stuart", "build", "--manifest-path", manifest_path]);
     let result = match args.subcommand() {

@@ -1,6 +1,7 @@
 [site]
-name = "js"
+name = "js_isolation"
 author = "William Henderson <william-henderson@outlook.com>"
 
 [dependencies]
-my_js_plugin = "./plugin.mjs"
+plugin1 = "./plugin1.mjs"
+plugin2 = "./plugin2.mjs"
