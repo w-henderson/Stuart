@@ -9,15 +9,15 @@ use stuart_core::plugins::Plugin;
 use stuart_core::process::{ProcessError, Scope};
 use stuart_core::TracebackError;
 
+use std::cell::RefCell;
 use std::path::Path;
-use std::rc::Rc;
-use std::sync::{Mutex, Once};
+use std::sync::Once;
 
 /// Ensures that V8 is initialised exactly once.
 static INIT: Once = Once::new();
 
 thread_local! {
-    static ISOLATE: Rc<Mutex<Option<v8::OwnedIsolate>>> = Rc::new(Mutex::new(None));
+    static ISOLATE: RefCell<v8::OwnedIsolate> = RefCell::new(v8::Isolate::new(Default::default()));
 }
 
 /// A parser for JavaScript functions.
@@ -49,18 +49,12 @@ pub fn load_js_plugin(path: impl AsRef<Path>) -> Result<Plugin, String> {
         v8::V8::initialize();
     });
 
-    ISOLATE.with(|isolate_opt| {
-        let mut locked = isolate_opt.lock().unwrap();
-
-        if locked.is_none() {
-            locked.replace(v8::Isolate::new(Default::default()));
-        }
-
-        let isolate = locked.as_mut().unwrap();
+    ISOLATE.with(|isolate| {
+        let mut isolate = isolate.borrow_mut();
         let global_context;
 
         let (name, version, functions) = {
-            let handle_scope = &mut v8::HandleScope::new(isolate);
+            let handle_scope = &mut v8::HandleScope::new(&mut *isolate);
             let context = v8::Context::new(handle_scope);
             global_context = v8::Global::new(handle_scope, context);
             let scope = &mut v8::ContextScope::new(handle_scope, context);
@@ -185,9 +179,8 @@ impl Function for JSFunction {
     fn execute(&self, stuart_scope: &mut Scope) -> Result<(), TracebackError<ProcessError>> {
         let self_token = stuart_scope.tokens.current().unwrap().clone();
 
-        ISOLATE.with(|isolate_opt| {
-            let mut locked = isolate_opt.lock().unwrap();
-            let isolate = locked.as_mut().unwrap();
+        ISOLATE.with(|isolate| {
+            let mut isolate = isolate.borrow_mut();
             let handle_scope = &mut v8::HandleScope::new(&mut *isolate);
             let context = v8::Local::new(handle_scope, &self.context);
             let scope = &mut v8::ContextScope::new(handle_scope, context);
