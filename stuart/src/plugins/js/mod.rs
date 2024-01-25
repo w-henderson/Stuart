@@ -154,8 +154,6 @@ pub fn load_js_plugin(path: impl AsRef<Path>) -> Result<Plugin, String> {
             }) as Box<dyn FunctionParser>);
         }
 
-        println!("Loaded JavaScript plugin: {} v{}", name, version);
-
         Ok(Plugin {
             name,
             version,
