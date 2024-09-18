@@ -32,17 +32,28 @@ static JS: &[u8] = include_bytes!("main.js");
 struct State {
     /// Connected WebSocket streams to broadcast updates to.
     streams: Arc<Mutex<Vec<WebsocketStream>>>,
+    /// The directory of files to serve.
+    path: String,
 }
 
 /// Serves the site with the given arguments.
 pub fn serve(args: ArgMatches) -> Result<(), Box<dyn StuartError>> {
     let manifest_path: String = args.value_of("manifest-path").unwrap().to_string();
     let output: String = args.value_of("output").unwrap().to_string();
-    let path = PathBuf::try_from(&manifest_path)
+    let output_path: PathBuf = PathBuf::from(&output);
+    let path: PathBuf = PathBuf::from(&manifest_path)
+        .canonicalize()
         .ok()
-        .and_then(|p| p.canonicalize().ok())
         .and_then(|p| p.parent().map(|p| p.to_path_buf()))
         .ok_or("invalid manifest path")?;
+
+    let full_output_path = if output_path.is_relative() {
+        path.join(output_path)
+    } else {
+        output_path
+    }
+    .to_string_lossy()
+    .to_string();
 
     let mut ctx = StuartContext::init(&manifest_path, &output, "development")?;
 
@@ -55,6 +66,7 @@ pub fn serve(args: ArgMatches) -> Result<(), Box<dyn StuartError>> {
     let streams = Arc::new(Mutex::new(Vec::new()));
     let state = State {
         streams: streams.clone(),
+        path: full_output_path,
     };
 
     let (tx, rx) = channel();
@@ -63,7 +75,7 @@ pub fn serve(args: ArgMatches) -> Result<(), Box<dyn StuartError>> {
 
     spawn(move || {
         let app = App::new_with_config(8, state)
-            .with_stateless_route("/*", serve_dir)
+            .with_route("/*", serve_dir)
             .with_websocket_route("/__ws", websocket_handler);
 
         app.run("127.0.0.1:6904")
@@ -144,10 +156,10 @@ fn websocket_handler(request: Request, stream: Stream, state: Arc<State>) {
 /// Serves a directory.
 ///
 /// Taken from Humphrey ([permalink](https://github.com/w-henderson/Humphrey/blob/8bf07aada8acb7e25991ac9e9f9462d9fb3086b0/humphrey/src/handlers.rs#L78)) and modified to correctly inject the WebSocket code.
-fn serve_dir(request: Request) -> Response {
+fn serve_dir(request: Request, state: Arc<State>) -> Response {
     let uri_without_route = request.uri.strip_prefix('/').unwrap_or(&request.uri);
 
-    let located = try_find_path("dist", uri_without_route, &["index.html"]);
+    let located = try_find_path(&state.path, uri_without_route, &["index.html"]);
 
     if let Some(located) = located {
         match located {

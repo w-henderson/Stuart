@@ -59,7 +59,7 @@ fn app() -> App<'static> {
                     Arg::new("output")
                         .long("output")
                         .short('o')
-                        .help("Output directory")
+                        .help("Output directory (if relative, relative to the manifest file)")
                         .default_value("dist"),
                 ),
         )
@@ -76,7 +76,7 @@ fn app() -> App<'static> {
                     Arg::new("output")
                         .long("output")
                         .short('o')
-                        .help("Output directory")
+                        .help("Output directory relative to the manifest file")
                         .default_value("dist"),
                 ),
         )
