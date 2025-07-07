@@ -98,7 +98,7 @@ fn build_watcher(
         if let Ok(e) = rx.recv() {
             let p = e.path.as_ref().unwrap().strip_prefix(&path).unwrap();
 
-            if p.starts_with("dist") || p.starts_with("temp") {
+            if p.starts_with("dist") || p.starts_with("temp") || p.ends_with("metadata.json") {
                 continue;
             }
 

@@ -43,10 +43,9 @@ impl StuartContext {
         output: &str,
         stuart_env: &str,
     ) -> Result<Self, Box<dyn StuartError>> {
-        let path = PathBuf::try_from(&manifest_path)
-            .ok()
-            .and_then(|path| path.canonicalize().ok())
-            .ok_or_else(|| "invalid manifest path".to_string())?;
+        let path = PathBuf::from(&manifest_path)
+            .canonicalize()
+            .map_err(|_| "invalid manifest path".to_string())?;
 
         let manifest =
             read_to_string(&path).map_err(|e| format!("failed to read manifest:\n  {}", e))?;

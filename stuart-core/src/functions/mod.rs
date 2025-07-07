@@ -131,12 +131,12 @@ impl PartialOrd for Input {
     }
 }
 
-impl ToString for Input {
-    fn to_string(&self) -> String {
+impl std::fmt::Display for Input {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Input::Variable(v) => v.clone(),
-            Input::String(s) => s.clone(),
-            Input::Integer(i) => i.to_string(),
+            Input::Variable(v) => write!(f, "{}", v),
+            Input::String(s) => write!(f, "\"{}\"", s),
+            Input::Integer(i) => write!(f, "{}", i),
         }
     }
 }

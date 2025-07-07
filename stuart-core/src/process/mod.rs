@@ -338,7 +338,7 @@ impl LocatableToken {
     }
 }
 
-impl<'a> Scope<'a> {
+impl Scope<'_> {
     /// Gets a variable from the scope by looking down the stack.
     pub fn get_variable(&self, name: &str) -> Option<Value> {
         let mut variable_iter = name.split('.');
