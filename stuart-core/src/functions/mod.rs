@@ -34,7 +34,7 @@ pub mod parsers {
         ifgt, IfGt, >;
         ifge, IfGe, >=;
         iflt, IfLt, <;
-        ifle, IfLe, <;
+        ifle, IfLe, <=;
     ];
 }
 
